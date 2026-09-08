@@ -189,11 +189,15 @@
       const node = path[i];
       if (typeof node.draw !== "function") continue;
       const rPx = (node.size * 0.5) / viewMeters * H;
-      const fadeIn = smoothstep(2, 22, rPx);
+      let fadeIn = smoothstep(8, 36, rPx);
+      if (i > 0) {
+        const parentR = (path[i - 1].size * 0.5) / viewMeters * H;
+        fadeIn *= smoothstep(minSide * 0.62, minSide * 1.08, parentR);
+      }
       let fadeOut = 1;
       if (i + 1 < path.length) {
         const childR = (path[i + 1].size * 0.5) / viewMeters * H;
-        fadeOut = 1 - smoothstep(minSide * 0.45, minSide * 1.1, childR);
+        fadeOut = 1 - smoothstep(minSide * 0.2, minSide * 0.52, childR);
       } else {
         fadeOut = 1 - smoothstep(minSide * 2.2, minSide * 8, rPx);
       }
@@ -372,6 +376,11 @@
   });
   resize();
   drawTicks();
-  slider.value = String(logToSlider(HUMAN_LOG));
+  const q = new URLSearchParams(location.search);
+  if (q.has("log")) {
+    const v = Number(q.get("log"));
+    if (isFinite(v)) logView = targetLog = clamp(v, LOG_MIN, LOG_MAX);
+  }
+  slider.value = String(logToSlider(targetLog));
   requestAnimationFrame(frame);
 })();

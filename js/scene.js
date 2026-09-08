@@ -4,6 +4,29 @@
   const U = global.ScaleUtil;
   const { lerp, smoothstep, mulberry32, hash2, motion, disc, glow, YEAR, DAY, AU, withAlpha, clamp } = U;
 
+  function loadImg(src) {
+    const im = new Image();
+    im.src = src;
+    return im;
+  }
+
+  const IMG = {
+    earth: loadImg("img/earth_globe.png"),
+    africa: loadImg("img/africa_map.png"),
+    landscape: loadImg("img/landscape_aerial.png"),
+    human: loadImg("img/human_figure.png"),
+  };
+
+  function spriteReady(img) {
+    return img && img.complete && img.naturalWidth > 0;
+  }
+
+  function drawSprite(ctx, img, w, h) {
+    if (!spriteReady(img)) return false;
+    ctx.drawImage(img, -w * 0.5, -h * 0.5, w, h);
+    return true;
+  }
+
   function rngArray(seed, n, fn) {
     const r = mulberry32(seed);
     const a = [];
@@ -652,8 +675,24 @@
   }
 
   function drawEarth(ctx, R, t, env) {
-    const deg = earthFacingDeg(t, env);
     glow(ctx, 0, 0, R * 1.28, "rgba(70,150,255,0.22)", "rgba(140,200,255,0.3)");
+    if (spriteReady(IMG.earth)) {
+      clipCircle(ctx, R, function () {
+        ctx.drawImage(IMG.earth, -R, -R, R * 2, R * 2);
+        const night = ctx.createLinearGradient(-R, 0, R * 0.15, 0);
+        night.addColorStop(0, "rgba(4,10,28,0.42)");
+        night.addColorStop(0.46, "rgba(4,10,28,0)");
+        ctx.fillStyle = night;
+        ctx.fillRect(-R, -R, R * 2, R * 2);
+      });
+      ctx.beginPath();
+      ctx.arc(0, 0, R, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(170,215,255,0.4)";
+      ctx.lineWidth = Math.max(1, R * 0.014);
+      ctx.stroke();
+      return;
+    }
+    const deg = earthFacingDeg(t, env);
     clipCircle(ctx, R, function () {
       const ocean = ctx.createLinearGradient(-R, -R * 0.25, R, R * 0.45);
       ocean.addColorStop(0, "#08325f");
@@ -683,8 +722,6 @@
       fillLonLat(ctx, R, deg, [NAMERICA, BAJA, CUBA, GREENLAND], "#4aa057", edge);
       fillLonLat(ctx, R, deg, [SAMERICA], "#3b8a44", edge);
       fillLonLat(ctx, R, deg, [AUSTRALIA, TASMANIA, NZ_NORTH, NZ_SOUTH], "#6a9a40", edge);
-      fillLonLat(ctx, R, deg, [SAHARA], "#c4a35a", null);
-      fillLonLat(ctx, R, deg, [CONGO_BASIN], "#2d6e36", null);
       fillLonLat(ctx, R, deg, [ANTARCTICA], "#eef3f6", "#c5d0d8");
       fillLonLat(ctx, R, deg, [GREENLAND], "#e6eef2", null);
 
@@ -692,24 +729,8 @@
       if (n.z > 0.05) {
         ctx.fillStyle = "#eef3f6";
         ctx.beginPath();
-        ctx.ellipse(n.x * R, -n.y * R, R * 0.26 * n.z, R * 0.14, 0, 0, Math.PI * 2);
+        ctx.ellipse(n.x * R, -n.y * R, R * 0.22 * n.z, R * 0.12, 0, 0, Math.PI * 2);
         ctx.fill();
-      }
-
-      if (R > 70) {
-        ctx.save();
-        ctx.globalAlpha = 0.16;
-        ctx.fillStyle = "#ffffff";
-        const drift = motion(DAY * 3.2, t, env.rate);
-        const cx = (drift.phase - 0.5) * R * 0.7;
-        for (let i = 0; i < 6; i++) {
-          const x = cx + (hash2(i, 2) - 0.5) * R * 0.9;
-          const y = (hash2(i, 7) - 0.55) * R * 0.7;
-          ctx.beginPath();
-          ctx.ellipse(x, y, R * 0.12, R * 0.028, 0.2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
       }
 
       const night = ctx.createLinearGradient(-R, 0, R * 0.15, 0);
@@ -727,17 +748,22 @@
 
   function drawContinent(ctx, R, t, env) {
     if (viewCover(R, env) > 1.18) fillBg(ctx, R, "#1a73b8", "#0c3d6a", env);
+    if (drawSprite(ctx, IMG.africa, R * 2.05, R * 2.05)) return;
     const lon0 = 20;
     const lat0 = 8;
     const kx = 1 / 42;
     const ky = 1 / 44;
     const coast = "#1c4f28";
     fillFlat(ctx, [AFRICA], lon0, lat0, kx, ky, R, "#3f9448", coast);
+    ctx.save();
+    fillFlat(ctx, [AFRICA], lon0, lat0, kx, ky, R, "rgba(0,0,0,0)", null);
+    ctx.clip();
+    fillFlat(ctx, [SAHARA], lon0, lat0, kx, ky, R, "#d2b06a", null);
+    fillFlat(ctx, [CONGO_BASIN], lon0, lat0, kx, ky, R, "#2a6c34", null);
+    ctx.restore();
     fillFlat(ctx, [MADAGASCAR], lon0, lat0, kx, ky, R, "#3f9448", coast);
     fillFlat(ctx, [EUROPE, ITALY, SICILY, UK, IRELAND], lon0, lat0, kx, ky, R, "#4ca056", coast);
     fillFlat(ctx, [ARABIA], lon0, lat0, kx, ky, R, "#c2a05c", coast);
-    fillFlat(ctx, [SAHARA], lon0, lat0, kx, ky, R, "#d2b06a", null);
-    fillFlat(ctx, [CONGO_BASIN], lon0, lat0, kx, ky, R, "#2a6c34", null);
     fillFlat(
       ctx,
       [[[14, -22], [26, -22], [28, -28], [20, -30], [16, -26], [14, -22]]],
@@ -903,10 +929,19 @@
   }
 
   function drawHuman(ctx, R, t, env) {
+    const sway = 0.018 * Math.sin(env.wall * 0.7);
+    if (spriteReady(IMG.human)) {
+      ctx.save();
+      ctx.rotate(sway);
+      const h = R * 1.92;
+      const w = h * (IMG.human.naturalWidth / IMG.human.naturalHeight);
+      ctx.drawImage(IMG.human, -w * 0.5, -h * 0.5, w, h);
+      ctx.restore();
+      return;
+    }
     const breath = motion(4.2, t, env.rate);
     const pulse = motion(0.85, t, env.rate);
     const chest = 1 + 0.035 * Math.sin(breath.phase * Math.PI * 2) * (breath.amount || (breath.frozen ? 0 : 1));
-    const sway = 0.02 * Math.sin(env.wall * 0.7);
     const h = R * 1.78;
     const w = h * 0.23;
     const skin = "#e4b48c";
@@ -1340,6 +1375,7 @@
 
   function drawRegion(ctx, R, t, env) {
     fillBg(ctx, R, "#7ec4f0", "#4e8a55", env);
+    if (drawSprite(ctx, IMG.landscape, R * 2.08, R * 2.08)) return;
 
     ctx.fillStyle = "#3fa0d0";
     ctx.beginPath();
@@ -1662,7 +1698,7 @@
       id: "continent",
       name: "Континент",
       desc: "Африка, Сахара, Нил, Мадагаскар",
-      size: 8.2e6,
+      size: 3.2e6,
       interior: "#3fa0d8",
       draw: drawContinent,
       children: [region],
