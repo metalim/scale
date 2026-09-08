@@ -2,7 +2,7 @@
   "use strict";
 
   const U = window.ScaleUtil;
-  const { clamp, lerp, smoothstep, formatMeters, formatExp, formatTimeRate, timeRate, sizeAlpha, disc } = U;
+  const { clamp, lerp, smoothstep, formatMeters, formatExp, formatTimeRate, timeRate } = U;
 
   const canvas = document.getElementById("viewport");
   const ctx = canvas.getContext("2d", { alpha: false });
@@ -181,52 +181,24 @@
     }
   }
 
-  function renderNode(node, cx, cy, radiusPx, env) {
-    if (radiusPx < 0.25) return;
-    if (cx + radiusPx < -40 || cx - radiusPx > W + 40 || cy + radiusPx < -40 || cy - radiusPx > H + 40) {
-      if (radiusPx < Math.max(W, H) * 4) return;
-    }
+  function layerAlpha(size, viewMeters) {
+    const d = Math.log10(viewMeters / size);
+    return smoothstep(-2.0, -0.35, d) * (1 - smoothstep(0.35, 2.0, d));
+  }
 
-    let maxChildR = 0;
-    const kids = node.children || [];
-    for (let i = 0; i < kids.length; i++) {
-      maxChildR = Math.max(maxChildR, radiusPx * (kids[i].size / node.size));
-    }
-
-    const fade = sizeAlpha(radiusPx, 0.6, 10, Math.max(W, H) * 1.05, Math.max(W, H) * 6.5);
-    const parentFade = 1 - smoothstep(Math.min(W, H) * 0.1, Math.min(W, H) * 0.42, maxChildR);
-    const a = fade * parentFade;
-
-    if (radiusPx < 88) {
-      if (radiusPx > 2.5 && a > 0.02) {
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.globalAlpha = a * Math.min(1, radiusPx / 14);
-        disc(ctx, 0, 0, radiusPx, node.interior || "#dde");
-        ctx.restore();
-      }
-    } else if (a > 0.02 && typeof node.draw === "function") {
+  function renderLayers(env, viewMeters) {
+    const cx = W * 0.5;
+    const cy = H * 0.52;
+    for (let i = 0; i < path.length; i++) {
+      const node = path[i];
+      const a = layerAlpha(node.size, viewMeters);
+      if (a < 0.02 || typeof node.draw !== "function") continue;
+      const radiusPx = ((node.size * 0.5) / viewMeters) * H;
       ctx.save();
       ctx.translate(cx, cy);
       ctx.globalAlpha = a;
       node.draw(ctx, radiusPx, env.t, env);
       ctx.restore();
-    } else if (radiusPx > Math.max(W, H) && node.interior) {
-      ctx.fillStyle = node.interior;
-      ctx.globalAlpha = 0.18 * (1 - parentFade);
-      ctx.fillRect(0, 0, W, H);
-      ctx.globalAlpha = 1;
-    }
-
-    for (let i = 0; i < kids.length; i++) {
-      const child = kids[i];
-      const childR = radiusPx * (child.size / node.size);
-      if (childR < 0.35 && i > 0) continue;
-      const ox = typeof child.ox === "function" ? child.ox(env.t) : child.ox || 0;
-      const oy = typeof child.oy === "function" ? child.oy(env.t) : child.oy || 0;
-      const childX = cx + (ox / (node.size * 0.5)) * radiusPx;
-      const childY = cy + (oy / (node.size * 0.5)) * radiusPx;
-      renderNode(child, childX, childY, childR, env);
     }
   }
 
@@ -289,15 +261,8 @@
     ctx.fillRect(0, 0, W, H);
 
     try {
-      if (logView > 8.2) {
-        ctx.save();
-        window.ScaleScene.drawStarsBackdrop(ctx, Math.max(W, H));
-        ctx.restore();
-      }
-
       const env = { t: simTime, rate: rate, wall: wall, viewLog: logView, W: W, H: H };
-      const worldR = ((world.size * 0.5) / viewMeters) * H;
-      renderNode(world, W * 0.5, H * 0.52, worldR, env);
+      renderLayers(env, viewMeters);
 
       drawScaleBar(viewMeters);
     } catch (err) {

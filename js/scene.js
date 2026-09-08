@@ -81,14 +81,38 @@
     z: r() < 0.3 ? 8 : 6,
   }));
 
-  function fillBg(ctx, R, c0, c1) {
-    if (R < 160) return;
-    const g = ctx.createRadialGradient(0, 0, R * 0.1, 0, 0, R * 1.2);
+  function viewCover(R, env) {
+    if (!env || !env.W || !env.H) return 1;
+    return (R * 2) / Math.min(env.W, env.H);
+  }
+
+  /** Full-viewport wash with no circular/square edge. Only when this node fills the screen. */
+  function fillBg(ctx, R, c0, c1, env) {
+    const W = (env && env.W) || ctx.canvas.clientWidth || 800;
+    const H = (env && env.H) || ctx.canvas.clientHeight || 600;
+    const cover = (R * 2) / Math.min(W, H);
+    const t = smoothstep(0.9, 1.45, cover);
+    if (t < 0.01) return;
+    ctx.save();
+    ctx.globalAlpha *= t;
+    const s = Math.max(W, H);
+    const g = ctx.createRadialGradient(0, 0, s * 0.08, 0, 0, s * 0.95);
     g.addColorStop(0, c0);
     g.addColorStop(1, c1);
     ctx.fillStyle = g;
+    ctx.fillRect(-s, -s, s * 2, s * 2);
+    ctx.restore();
+  }
+
+  function softBody(ctx, R, color) {
+    if (R < 3) return;
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    g.addColorStop(0, color);
+    g.addColorStop(0.55, color);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(0, 0, R * 1.35, 0, Math.PI * 2);
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -102,7 +126,7 @@
   }
 
   function drawUniverse(ctx, R, t, env) {
-    fillBg(ctx, R, "#14081f", "#05030a");
+    fillBg(ctx, R, "#14081f", "#05030a", env);
     const exp = motion(YEAR * 1e10, t, env.rate);
     const stretch = 1 + (exp.amount ? exp.phase * 0.02 : 0);
 
@@ -131,7 +155,7 @@
   }
 
   function drawSupercluster(ctx, R, t, env) {
-    fillBg(ctx, R, "#0c0820", "#05040c");
+    fillBg(ctx, R, "#0c0820", "#05040c", env);
     const rot = motion(YEAR * 5e9, t, env.rate);
     ctx.save();
     ctx.rotate(rot.phase * Math.PI * 2 * 0.15);
@@ -154,7 +178,7 @@
   }
 
   function drawGalaxy(ctx, R, t, env) {
-    fillBg(ctx, R, "#07060e", "#030208");
+    fillBg(ctx, R, "#07060e", "#030208", env);
     const rot = motion(YEAR * 2.3e8, t, env.rate);
     const ang = rot.phase * Math.PI * 2;
 
@@ -201,13 +225,10 @@
     ctx.ellipse(0, 0, R * 0.95, R * 0.68, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
-
-    glow(ctx, 0, 0, Math.max(8, R * 0.03), "rgba(255, 210, 120, 0.35)");
-    disc(ctx, 0, 0, Math.max(2, R * 0.01), "#e8c547");
   }
 
   function drawStarfield(ctx, R, t, env) {
-    fillBg(ctx, R, "#070712", "#020208");
+    fillBg(ctx, R, "#070712", "#020208", env);
     const tw = env.wall;
     for (const s of NEIGHBOR_STARS) {
       if (Math.abs(s.x) < 0.05 && Math.abs(s.y) < 0.05) continue;
@@ -215,8 +236,6 @@
       glow(ctx, s.x * R, s.y * R, s.r * R * 3, "rgba(255,240,210," + 0.12 * a + ")");
       disc(ctx, s.x * R, s.y * R, Math.max(1.2, s.r * R), s.c);
     }
-    glow(ctx, 0, 0, R * 0.08, "rgba(255, 220, 140, 0.25)");
-    disc(ctx, 0, 0, Math.max(2.5, R * 0.018), "#ffe7b0");
   }
 
   function keplerPos(a, e, period, t, phase) {
@@ -226,7 +245,7 @@
   }
 
   function drawSolarSystem(ctx, R, t, env) {
-    fillBg(ctx, R, "#0a0a12", "#030308");
+    fillBg(ctx, R, "#0a0a12", "#030308", env);
     const m2 = (R * 2) / 3.2e12;
     const earth = keplerPos(AU, 0.017, YEAR, t, 0);
     const sunX = -earth.x * m2;
@@ -236,7 +255,6 @@
     const planets = [
       { a: 0.39 * AU, p: YEAR * 0.241, col: "#c9b8a6", rad: 2.4e6, e: 0.2 },
       { a: 0.72 * AU, p: YEAR * 0.615, col: "#e8d09a", rad: 6.0e6, e: 0.007 },
-      { a: AU, p: YEAR, col: "#6fa8d8", rad: 6.37e6, e: 0.017 },
       { a: 1.52 * AU, p: YEAR * 1.88, col: "#d07a52", rad: 3.4e6, e: 0.09 },
       { a: 5.2 * AU, p: YEAR * 11.86, col: "#d9b48c", rad: 7.0e7, e: 0.05 },
     ];
@@ -260,11 +278,14 @@
       disc(ctx, x, y, pr, pl.col);
     }
 
-    disc(ctx, 0, 0, Math.max(3, 6.37e6 * m2 * 1.4), "#7ec8f0");
+    ctx.strokeStyle = "rgba(110,180,230,0.35)";
+    ctx.beginPath();
+    ctx.ellipse(sunX, sunY, AU * m2, AU * m2 * 0.98, 0, 0, Math.PI * 2);
+    ctx.stroke();
   }
 
   function drawInnerSystem(ctx, R, t, env) {
-    fillBg(ctx, R, "#0b0c14", "#04050a");
+    fillBg(ctx, R, "#0b0c14", "#04050a", env);
     const m2 = (R * 2) / 4.6e11;
     const earth = keplerPos(AU, 0.017, YEAR, t, 0);
     const sunX = -earth.x * m2;
@@ -275,21 +296,16 @@
     ctx.beginPath();
     ctx.ellipse(sunX, sunY, AU * m2, AU * m2 * 0.985, 0, 0, Math.PI * 2);
     ctx.stroke();
-    disc(ctx, 0, 0, Math.max(10, 6.37e6 * m2 * 8), "#6eb7ea");
-    const moon = motion(DAY * 27.3, t, env.rate);
-    const md = 3.84e8 * m2;
-    disc(ctx, Math.cos(moon.phase * 6.283) * md, Math.sin(moon.phase * 6.283) * md, Math.max(2, 1.7e6 * m2), "#cfc8bb");
   }
 
   function drawEarthSpace(ctx, R, t, env) {
-    fillBg(ctx, R, "#070814", "#020208");
+    fillBg(ctx, R, "#070814", "#020208", env);
     const sun = keplerPos(AU, 0.017, YEAR, t, 0);
     const m2 = (R * 2) / 4.5e10;
     const sunX = -sun.x * m2;
     const sunY = -sun.y * m2;
     glow(ctx, sunX, sunY, Math.max(40, R * 0.35), "rgba(255,170,60,0.2)", "rgba(255,220,120,0.45)");
     disc(ctx, sunX, sunY, Math.max(8, R * 0.04), "#ffd078");
-    drawEarth(ctx, Math.max(12, R * 0.16), t, env);
     const moon = motion(DAY * 27.3, t, env.rate);
     const md = Math.min(R * 0.55, 3.84e8 * m2 * 8);
     disc(
@@ -302,14 +318,13 @@
   }
 
   function drawEarthMoon(ctx, R, t, env) {
-    fillBg(ctx, R, "#05060c", "#020208");
+    fillBg(ctx, R, "#05060c", "#020208", env);
     const moon = motion(DAY * 27.3, t, env.rate);
     const a = moon.phase * Math.PI * 2;
     ctx.strokeStyle = "rgba(255,255,255,0.12)";
     ctx.beginPath();
     ctx.ellipse(0, 0, R * 0.72, R * 0.7, 0.15, 0, Math.PI * 2);
     ctx.stroke();
-    drawEarth(ctx, Math.max(10, R * 0.2), t, env);
     const mx = Math.cos(a) * R * 0.72;
     const my = Math.sin(a) * R * 0.7;
     glow(ctx, mx, my, R * 0.08, "rgba(200,200,220,0.15)");
@@ -372,14 +387,10 @@
   }
 
   function drawContinent(ctx, R, t, env) {
-    const g = ctx.createLinearGradient(0, -R, 0, R);
-    g.addColorStop(0, "#6ec4ff");
-    g.addColorStop(0.45, "#3fa0d8");
-    g.addColorStop(1, "#2b7fb0");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(0, 0, R, 0, Math.PI * 2);
-    ctx.fill();
+    fillBg(ctx, R, "#6ec4ff", "#2b7fb0", env);
+    if (viewCover(R, env) < 0.9) {
+      softBody(ctx, R, "rgba(63,160,216,0.55)");
+    }
 
     ctx.fillStyle = "#5daa62";
     blob(ctx, -R * 0.08, 0.02 * R, R * 0.72, R * 0.5, 0.25);
@@ -395,17 +406,10 @@
     blob(ctx, 0, -R * 0.1, R * 0.28, R * 0.08, 0.1);
     blob(ctx, R * 0.3, R * 0.18, R * 0.22, R * 0.06, -0.2);
     ctx.restore();
-
-    disc(ctx, 0, 0, Math.max(3, R * 0.012), "#e8c547");
   }
 
   function drawCity(ctx, R, t, env) {
-    const sky = ctx.createLinearGradient(0, -R, 0, R);
-    sky.addColorStop(0, "#8ec4e8");
-    sky.addColorStop(0.55, "#cfe6c2");
-    sky.addColorStop(1, "#8aaa78");
-    ctx.fillStyle = sky;
-    ctx.fillRect(-R, -R, R * 2, R * 2);
+    fillBg(ctx, R, "#8ec4e8", "#8aaa78", env);
 
     ctx.fillStyle = "#8f8a84";
     ctx.fillRect(-R * 0.95, R * 0.08, R * 1.9, R * 0.04);
@@ -446,23 +450,15 @@
       ctx.fillStyle = car.c;
       ctx.fillRect(x - 2, y - 1, Math.max(3, R * 0.012), Math.max(1.5, R * 0.006));
     }
-
-    ctx.fillStyle = "#4d8f55";
-    ctx.beginPath();
-    ctx.ellipse(0, 0, R * 0.09, R * 0.07, 0, 0, Math.PI * 2);
-    ctx.fill();
   }
 
   function drawPlaza(ctx, R, t, env) {
-    const sky = ctx.createLinearGradient(0, -R, 0, R * 0.2);
-    sky.addColorStop(0, "#9fd2f2");
-    sky.addColorStop(0.7, "#d7eef8");
-    sky.addColorStop(1, "#c8d9b8");
-    ctx.fillStyle = sky;
-    ctx.fillRect(-R * 1.2, -R * 1.2, R * 2.4, R * 2.4);
+    fillBg(ctx, R, "#9fd2f2", "#c8d9b8", env);
 
     ctx.fillStyle = "#8fb56a";
-    ctx.fillRect(-R, R * 0.22, R * 2, R);
+    ctx.beginPath();
+    ctx.ellipse(0, R * 0.42, R * 1.1, R * 0.38, 0, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = "#c9c2b3";
     ctx.beginPath();
     ctx.ellipse(0, R * 0.28, R * 0.42, R * 0.16, 0, 0, Math.PI * 2);
@@ -569,11 +565,10 @@
   }
 
   function drawSkin(ctx, R, t, env) {
-    const g = ctx.createRadialGradient(0, 0, R * 0.1, 0, 0, R);
-    g.addColorStop(0, "#f0c4a4");
-    g.addColorStop(1, "#d29a78");
-    ctx.fillStyle = g;
-    ctx.fillRect(-R, -R, R * 2, R * 2);
+    fillBg(ctx, R, "#f0c4a4", "#d29a78", env);
+    if (viewCover(R, env) < 0.9) {
+      softBody(ctx, R, "rgba(240,196,164,0.85)");
+    }
 
     ctx.strokeStyle = "rgba(160,90,70,0.18)";
     ctx.lineWidth = 1;
@@ -595,7 +590,7 @@
   }
 
   function drawCell(ctx, R, t, env) {
-    fillBg(ctx, R, "#163028", "#0b1a14");
+    fillBg(ctx, R, "#163028", "#0b1a14", env);
     const wobble = motion(6, t, env.rate);
     const k = 1 + 0.02 * Math.sin(wobble.phase * Math.PI * 2);
 
@@ -627,9 +622,6 @@
       disc(ctx, Math.cos(a) * d * R, Math.sin(a) * d * R * 0.85, R * 0.018, "rgba(220,255,180,0.45)");
     }
 
-    disc(ctx, -R * 0.08, -R * 0.05, R * 0.28, "rgba(80, 40, 90, 0.65)");
-    disc(ctx, -R * 0.08, -R * 0.05, R * 0.1, "rgba(40, 16, 50, 0.9)");
-
     for (const o of ORGANELLES) {
       const p = motion(9 + o.p * 5, t, env.rate);
       const ox = o.x * R + Math.cos(p.phase * 6.28) * R * 0.06;
@@ -647,11 +639,9 @@
   }
 
   function drawNucleusCell(ctx, R, t, env) {
-    fillBg(ctx, R, "#2a1830", "#120814");
+    fillBg(ctx, R, "#2a1830", "#120814", env);
     ctx.beginPath();
     ctx.arc(0, 0, R * 0.92, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(90, 40, 100, 0.35)";
-    ctx.fill();
     ctx.strokeStyle = "rgba(220,160,200,0.5)";
     ctx.lineWidth = Math.max(2, R * 0.025);
     ctx.stroke();
@@ -665,11 +655,10 @@
       ctx.arc(Math.cos(a) * R * 0.15, Math.sin(a) * R * 0.15, R * 0.28, a, a + 2.2);
       ctx.stroke();
     }
-    disc(ctx, 0, 0, R * 0.16, "rgba(40,10,40,0.9)");
   }
 
   function drawDNA(ctx, R, t, env) {
-    fillBg(ctx, R, "#1a1020", "#0a0610");
+    fillBg(ctx, R, "#1a1020", "#0a0610", env);
     const rot = motion(2.8, t, env.rate);
     const turns = 7;
     ctx.lineCap = "round";
@@ -705,7 +694,7 @@
   }
 
   function drawMolecule(ctx, R, t, env) {
-    fillBg(ctx, R, "#101018", "#07070c");
+    fillBg(ctx, R, "#101018", "#07070c", env);
     const vib = motion(0.08, t, env.rate);
     const j = (vib.amount ? Math.sin(vib.phase * Math.PI * 2) : 0) * R * 0.02;
     const atoms = [
@@ -724,15 +713,15 @@
       ctx.stroke();
     }
     for (const a of atoms) {
-      glow(ctx, a.x * R + j * (a.x === 0 ? 1 : 0.3), a.y * R, a.r * R * 1.8, withAlpha(a.c, 0.2));
-      disc(ctx, a.x * R + j * (a.x === 0 ? 1 : 0.3), a.y * R, a.r * R, a.c);
+      if (a.x === 0 && a.y === 0) continue;
+      glow(ctx, a.x * R + j * 0.3, a.y * R, a.r * R * 1.8, withAlpha(a.c, 0.2));
+      disc(ctx, a.x * R + j * 0.3, a.y * R, a.r * R, a.c);
     }
   }
 
   function drawAtom(ctx, R, t, env) {
-    fillBg(ctx, R, "#0c1020", "#05060c");
-    glow(ctx, 0, 0, R * 0.18, "rgba(120,180,255,0.2)");
-    disc(ctx, 0, 0, Math.max(3, R * 0.045), "#f4e8c8");
+    fillBg(ctx, R, "#0c1020", "#05060c", env);
+    glow(ctx, 0, 0, R * 0.12, "rgba(120,180,255,0.15)");
 
     const shells = [
       { rx: 0.38, ry: 0.18, n: 2, p: 1.5e-16 },
@@ -769,7 +758,7 @@
   }
 
   function drawNucleus(ctx, R, t, env) {
-    fillBg(ctx, R, "#140c08", "#070402");
+    fillBg(ctx, R, "#140c08", "#070402", env);
     const nucleons = [];
     const rng = mulberry32(42);
     for (let i = 0; i < 12; i++) {
@@ -784,6 +773,7 @@
     }
     const vib = motion(1e-22, t, env.rate);
     for (const n of nucleons) {
+      if (Math.hypot(n.x, n.y) < 0.16) continue;
       const jx = Math.cos(vib.phase * 6.28 + n.ph) * 0.04 * (vib.amount ? 1 : 0);
       const jy = Math.sin(vib.phase * 6.28 + n.ph * 1.3) * 0.04 * (vib.amount ? 1 : 0);
       const x = (n.x + jx) * R;
@@ -794,39 +784,21 @@
   }
 
   function drawProton(ctx, R, t, env) {
-    fillBg(ctx, R, "#1a0a10", "#080406");
-    glow(ctx, 0, 0, R, "rgba(255,80,80,0.12)");
+    fillBg(ctx, R, "#1a0a10", "#080406", env);
     const m = motion(1e-23, t, env.rate);
-    const quarks = [
-      { c: "#ff3b3b", name: "u" },
-      { c: "#3bff6a", name: "u" },
-      { c: "#3b6aff", name: "d" },
-    ];
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2 + m.phase * Math.PI * 2;
-      const d = R * (0.38 + 0.06 * Math.sin(m.phase * 12 + i));
-      const x = Math.cos(a) * d;
-      const y = Math.sin(a) * d;
-      const a2 = ((i + 1) / 3) * Math.PI * 2 + m.phase * Math.PI * 2;
-      const d2 = R * (0.38 + 0.06 * Math.sin(m.phase * 12 + i + 1));
-      ctx.strokeStyle = "rgba(255,220,80,0.55)";
-      ctx.lineWidth = Math.max(1.5, R * 0.025);
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.quadraticCurveTo(
-        Math.sin(m.phase * 18 + i) * R * 0.12,
-        Math.cos(m.phase * 14 + i) * R * 0.12,
-        Math.cos(a2) * d2,
-        Math.sin(a2) * d2
-      );
-      ctx.stroke();
-      glow(ctx, x, y, R * 0.28, withAlpha(quarks[i].c, 0.35));
-      disc(ctx, x, y, R * 0.16, quarks[i].c);
-    }
+    glow(ctx, 0, 0, R * 1.05, "rgba(255,80,80,0.16)");
+    const pulse = 0.82 + 0.08 * Math.sin(m.phase * Math.PI * 2);
+    ctx.beginPath();
+    ctx.arc(0, 0, R * pulse * 0.72, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 90, 70, 0.22)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 160, 120, 0.35)";
+    ctx.lineWidth = Math.max(1, R * 0.03);
+    ctx.stroke();
   }
 
   function drawQuarks(ctx, R, t, env) {
-    fillBg(ctx, R, "#120614", "#050208");
+    fillBg(ctx, R, "#120614", "#050208", env);
     const m = motion(5e-24, t, env.rate);
     const cols = ["#ff3355", "#33ff88", "#4488ff"];
     for (let i = 0; i < 3; i++) {
@@ -851,11 +823,7 @@
   }
 
   function drawStreet(ctx, R, t, env) {
-    const sky = ctx.createLinearGradient(0, -R, 0, R * 0.1);
-    sky.addColorStop(0, "#8ec8ee");
-    sky.addColorStop(1, "#d5e6c9");
-    ctx.fillStyle = sky;
-    ctx.fillRect(-R * 1.2, -R * 1.2, R * 2.4, R * 2.4);
+    fillBg(ctx, R, "#8ec8ee", "#d5e6c9", env);
     ctx.fillStyle = "#5c5a58";
     ctx.fillRect(-R, R * 0.08, R * 2, R * 0.22);
     ctx.strokeStyle = "rgba(255,220,80,0.7)";
@@ -890,20 +858,10 @@
       ctx.fillStyle = i % 2 ? "#e8c547" : "#f4f0e6";
       ctx.fillRect(x, R * 0.14, R * 0.07, R * 0.035);
     }
-
-    ctx.fillStyle = "#4d8f55";
-    ctx.beginPath();
-    ctx.ellipse(0, 0, R * 0.12, R * 0.08, 0, 0, Math.PI * 2);
-    ctx.fill();
   }
 
   function drawBlock(ctx, R, t, env) {
-    const sky = ctx.createLinearGradient(0, -R, 0, R);
-    sky.addColorStop(0, "#8abfe0");
-    sky.addColorStop(0.6, "#c3d9b4");
-    sky.addColorStop(1, "#7d9a68");
-    ctx.fillStyle = sky;
-    ctx.fillRect(-R, -R, R * 2, R * 2);
+    fillBg(ctx, R, "#8abfe0", "#7d9a68", env);
     ctx.fillStyle = "#6e6a66";
     ctx.fillRect(-R, -R * 0.04, R * 2, R * 0.08);
     ctx.fillRect(-R * 0.04, -R, R * 0.08, R * 2);
@@ -920,10 +878,6 @@
       ctx.fillStyle = "#ffd36a";
       ctx.fillRect(lerp(-R, R, u) - 3, (i % 2 ? -0.02 : 0.02) * R, 6, 3);
     }
-    ctx.fillStyle = "#4d8f55";
-    ctx.beginPath();
-    ctx.ellipse(0, 0, R * 0.08, R * 0.06, 0, 0, Math.PI * 2);
-    ctx.fill();
   }
 
   function drawDistrict(ctx, R, t, env) {
@@ -931,12 +885,7 @@
   }
 
   function drawRegion(ctx, R, t, env) {
-    const g = ctx.createLinearGradient(0, -R, 0, R);
-    g.addColorStop(0, "#7ec4f0");
-    g.addColorStop(0.55, "#7fba72");
-    g.addColorStop(1, "#4e8a55");
-    ctx.fillStyle = g;
-    ctx.fillRect(-R, -R, R * 2, R * 2);
+    fillBg(ctx, R, "#7ec4f0", "#4e8a55", env);
     ctx.fillStyle = "#5ea45c";
     blob(ctx, -R * 0.2, 0, R * 0.7, R * 0.45, 0.2);
     ctx.fillStyle = "#c9d39a";
@@ -950,11 +899,10 @@
     const clouds = motion(DAY * 2, t, env.rate);
     ctx.fillStyle = "rgba(255,255,255,0.4)";
     blob(ctx, (clouds.phase - 0.5) * R, -R * 0.35, R * 0.25, R * 0.07, 0);
-    disc(ctx, 0, 0, Math.max(4, R * 0.02), "#d8c48a");
   }
 
   function drawChromosome(ctx, R, t, env) {
-    fillBg(ctx, R, "#24101c", "#0e060c");
+    fillBg(ctx, R, "#24101c", "#0e060c", env);
     const drift = motion(16, t, env.rate);
     ctx.lineCap = "round";
     ctx.strokeStyle = "rgba(210, 70, 130, 0.75)";
@@ -972,11 +920,10 @@
       }
       ctx.stroke();
     }
-    disc(ctx, 0, 0, R * 0.08, "rgba(40,10,30,0.9)");
   }
 
   function drawAtomicInterior(ctx, R, t, env) {
-    fillBg(ctx, R, "#080a14", "#03040a");
+    fillBg(ctx, R, "#080a14", "#03040a", env);
     const m = motion(1.5e-16, t, env.rate);
     for (let i = 0; i < 18; i++) {
       const a = (i / 18) * Math.PI * 2 + m.phase * 3;
@@ -986,14 +933,10 @@
       ctx.ellipse(Math.cos(a) * d * 0.15, Math.sin(a) * d * 0.1, d, d * 0.18, a, 0, Math.PI * 2);
       ctx.fill();
     }
-    glow(ctx, 0, 0, R * 0.12, "rgba(255, 220, 160, 0.35)", "rgba(255,240,200,0.8)");
-    disc(ctx, 0, 0, Math.max(2, R * 0.02), "#f4e8c8");
   }
 
   function drawOort(ctx, R, t, env) {
-    fillBg(ctx, R, "#08080f", "#020208");
-    glow(ctx, 0, 0, R * 0.05, "rgba(255,200,80,0.2)");
-    disc(ctx, 0, 0, Math.max(2, R * 0.012), "#ffe08a");
+    fillBg(ctx, R, "#08080f", "#020208", env);
     const drift = motion(YEAR * 1e5, t, env.rate);
     for (let i = 0; i < 90; i++) {
       const a = hash2(i, 1) * Math.PI * 2 + drift.phase * 0.2;
@@ -1064,26 +1007,7 @@
       size: 2.0e-10,
       interior: "#0c1020",
       draw: drawAtom,
-      children: [
-        atomicInterior,
-        ...ATOMS_AROUND.map(function (a, i) {
-          return node({
-            id: "atom-n" + i,
-            name: "Соседний атом",
-            desc: "",
-            size: 1.5e-10,
-            ox: Math.cos(a.a) * 3.2e-10,
-            oy: Math.sin(a.a) * 3.2e-10,
-            draw: function (ctx, R, t, env) {
-              disc(ctx, 0, 0, R * 0.2, "#8ab");
-              ctx.strokeStyle = "rgba(140,180,220,0.35)";
-              ctx.beginPath();
-              ctx.ellipse(0, 0, R * 0.85, R * 0.45, i, 0, Math.PI * 2);
-              ctx.stroke();
-            },
-          });
-        }),
-      ],
+      children: [atomicInterior],
     });
     const molecule = node({
       id: "molecule",
@@ -1191,7 +1115,7 @@
       size: 2.4e4,
       interior: "#8ec4e8",
       draw: drawCity,
-      children: [district],
+      children: [block],
     });
     const region = node({
       id: "region",
@@ -1229,24 +1153,6 @@
       draw: drawEarthMoon,
       children: [earth],
     });
-    const earthSpace = node({
-      id: "earth-space",
-      name: "Околоземное пространство",
-      desc: "Земля, Луна и далёкое Солнце",
-      size: 4.2e10,
-      interior: "#070814",
-      draw: drawEarthSpace,
-      children: [earthMoon],
-    });
-    const inner = node({
-      id: "inner-system",
-      name: "Внутренняя система",
-      desc: "Солнце и орбита Земли",
-      size: 3.2e11,
-      interior: "#0b0c14",
-      draw: drawInnerSystem,
-      children: [earthSpace],
-    });
     const solar = node({
       id: "solar",
       name: "Солнечная система",
@@ -1254,7 +1160,7 @@
       size: 3.2e12,
       interior: "#0a0a12",
       draw: drawSolarSystem,
-      children: [inner],
+      children: [earthMoon],
     });
     const oort = node({
       id: "oort",
