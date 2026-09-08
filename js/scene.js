@@ -3,29 +3,8 @@
 
   const U = global.ScaleUtil;
   const { lerp, smoothstep, mulberry32, hash2, motion, disc, glow, YEAR, DAY, AU, withAlpha, clamp } = U;
-
-  function loadImg(src) {
-    const im = new Image();
-    im.src = src;
-    return im;
-  }
-
-  const IMG = {
-    earth: loadImg("img/earth_globe.png"),
-    africa: loadImg("img/africa_map.png"),
-    landscape: loadImg("img/landscape_aerial.png"),
-    human: loadImg("img/human_figure.png"),
-  };
-
-  function spriteReady(img) {
-    return img && img.complete && img.naturalWidth > 0;
-  }
-
-  function drawSprite(ctx, img, w, h) {
-    if (!spriteReady(img)) return false;
-    ctx.drawImage(img, -w * 0.5, -h * 0.5, w, h);
-    return true;
-  }
+  const LAND = (global.ScaleLand && global.ScaleLand.land) || [];
+  const ICE = (global.ScaleLand && global.ScaleLand.ice) || [];
 
   function rngArray(seed, n, fn) {
     const r = mulberry32(seed);
@@ -397,45 +376,55 @@
     };
   }
 
-  function clipFront(pts, rotDeg) {
-    const raw = densifyRing(pts, 2);
+  function clipFrontParts(pts, rotDeg) {
+    const raw = pts.length > 80 ? pts : densifyRing(pts, 2);
     const proj = [];
     for (let i = 0; i < raw.length; i++) proj.push(projectSphere(raw[i][0], raw[i][1], rotDeg));
-    const out = [];
-    const EPS = 0.03;
-    const n = proj.length;
-    for (let i = 0; i < n - 1; i++) {
+    const EPS = 0.02;
+    const parts = [];
+    let cur = [];
+    function interp(a, b) {
+      const t = (EPS - a.z) / (b.z - a.z || 1);
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: EPS };
+    }
+    for (let i = 0; i < proj.length - 1; i++) {
       const a = proj[i];
       const b = proj[i + 1];
       const aIn = a.z >= EPS;
       const bIn = b.z >= EPS;
-      if (aIn) out.push(a);
-      if (aIn !== bIn) {
-        const t = (EPS - a.z) / (b.z - a.z);
-        out.push({
-          x: a.x + (b.x - a.x) * t,
-          y: a.y + (b.y - a.y) * t,
-          z: EPS,
-        });
+      if (aIn && bIn) {
+        if (!cur.length) cur.push(a);
+        cur.push(b);
+      } else if (aIn && !bIn) {
+        if (!cur.length) cur.push(a);
+        cur.push(interp(a, b));
+        if (cur.length >= 3) parts.push(cur);
+        cur = [];
+      } else if (!aIn && bIn) {
+        cur.push(interp(a, b));
+        cur.push(b);
       }
     }
-    return out;
+    if (cur.length >= 3) parts.push(cur);
+    return parts;
   }
 
   function fillLonLat(ctx, R, rotDeg, rings, fill, stroke) {
     for (let r = 0; r < rings.length; r++) {
-      const vis = clipFront(rings[r], rotDeg);
-      if (vis.length < 4) continue;
-      ctx.beginPath();
-      ctx.moveTo(vis[0].x * R, -vis[0].y * R);
-      for (let i = 1; i < vis.length; i++) ctx.lineTo(vis[i].x * R, -vis[i].y * R);
-      ctx.closePath();
-      ctx.fillStyle = fill;
-      ctx.fill();
-      if (stroke && R > 24) {
-        ctx.strokeStyle = stroke;
-        ctx.lineWidth = Math.max(0.8, R * 0.0075);
-        ctx.stroke();
+      const parts = clipFrontParts(rings[r], rotDeg);
+      for (let p = 0; p < parts.length; p++) {
+        const vis = parts[p];
+        ctx.beginPath();
+        ctx.moveTo(vis[0].x * R, -vis[0].y * R);
+        for (let i = 1; i < vis.length; i++) ctx.lineTo(vis[i].x * R, -vis[i].y * R);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+        if (stroke && R > 24) {
+          ctx.strokeStyle = stroke;
+          ctx.lineWidth = Math.max(0.9, R * 0.008);
+          ctx.stroke();
+        }
       }
     }
   }
@@ -446,23 +435,29 @@
     return [x, y];
   }
 
-  function fillFlat(ctx, rings, lon0, lat0, kx, ky, s, fill, stroke) {
+  function pathFlat(ctx, rings, lon0, lat0, kx, ky, s) {
+    ctx.beginPath();
     for (let r = 0; r < rings.length; r++) {
       const pts = rings[r];
-      ctx.beginPath();
-      for (let i = 0; i < pts.length; i++) {
+      if (!pts.length) continue;
+      const p0 = projectFlat(pts[0][0], pts[0][1], lon0, lat0, kx, ky);
+      ctx.moveTo(p0[0] * s, p0[1] * s);
+      for (let i = 1; i < pts.length; i++) {
         const p = projectFlat(pts[i][0], pts[i][1], lon0, lat0, kx, ky);
-        if (i === 0) ctx.moveTo(p[0] * s, p[1] * s);
-        else ctx.lineTo(p[0] * s, p[1] * s);
+        ctx.lineTo(p[0] * s, p[1] * s);
       }
       ctx.closePath();
-      ctx.fillStyle = fill;
-      ctx.fill();
-      if (stroke) {
-        ctx.strokeStyle = stroke;
-        ctx.lineWidth = Math.max(1.2, s * 0.01);
-        ctx.stroke();
-      }
+    }
+  }
+
+  function fillFlat(ctx, rings, lon0, lat0, kx, ky, s, fill, stroke) {
+    pathFlat(ctx, rings, lon0, lat0, kx, ky, s);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = Math.max(1.2, s * 0.01);
+      ctx.stroke();
     }
   }
 
@@ -676,22 +671,6 @@
 
   function drawEarth(ctx, R, t, env) {
     glow(ctx, 0, 0, R * 1.28, "rgba(70,150,255,0.22)", "rgba(140,200,255,0.3)");
-    if (spriteReady(IMG.earth)) {
-      clipCircle(ctx, R, function () {
-        ctx.drawImage(IMG.earth, -R, -R, R * 2, R * 2);
-        const night = ctx.createLinearGradient(-R, 0, R * 0.15, 0);
-        night.addColorStop(0, "rgba(4,10,28,0.42)");
-        night.addColorStop(0.46, "rgba(4,10,28,0)");
-        ctx.fillStyle = night;
-        ctx.fillRect(-R, -R, R * 2, R * 2);
-      });
-      ctx.beginPath();
-      ctx.arc(0, 0, R, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(170,215,255,0.4)";
-      ctx.lineWidth = Math.max(1, R * 0.014);
-      ctx.stroke();
-      return;
-    }
     const deg = earthFacingDeg(t, env);
     clipCircle(ctx, R, function () {
       const ocean = ctx.createLinearGradient(-R, -R * 0.25, R, R * 0.45);
@@ -701,40 +680,13 @@
       ctx.fillStyle = ocean;
       ctx.fillRect(-R, -R, R * 2, R * 2);
 
-      if (R > 48) {
-        ctx.strokeStyle = "rgba(200,230,255,0.12)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, R * 0.999, R * 0.18, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, -R);
-        ctx.lineTo(0, R);
-        ctx.stroke();
-      }
-
-      const land = "#3c8f45";
-      const edge = "#1f5a2c";
-      fillLonLat(ctx, R, deg, [AFRICA, MADAGASCAR], land, edge);
-      fillLonLat(ctx, R, deg, [EUROPE, UK, IRELAND, ITALY, SICILY, ICELAND], "#4ca056", edge);
-      fillLonLat(ctx, R, deg, [ASIA, INDIA, SRI_LANKA, JAPAN], "#3a8442", edge);
-      fillLonLat(ctx, R, deg, [ARABIA], "#c2a05c", edge);
-      fillLonLat(ctx, R, deg, [NAMERICA, BAJA, CUBA, GREENLAND], "#4aa057", edge);
-      fillLonLat(ctx, R, deg, [SAMERICA], "#3b8a44", edge);
-      fillLonLat(ctx, R, deg, [AUSTRALIA, TASMANIA, NZ_NORTH, NZ_SOUTH], "#6a9a40", edge);
-      fillLonLat(ctx, R, deg, [ANTARCTICA], "#eef3f6", "#c5d0d8");
-      fillLonLat(ctx, R, deg, [GREENLAND], "#e6eef2", null);
-
-      const n = projectSphere(0, 88, deg);
-      if (n.z > 0.05) {
-        ctx.fillStyle = "#eef3f6";
-        ctx.beginPath();
-        ctx.ellipse(n.x * R, -n.y * R, R * 0.22 * n.z, R * 0.12, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      const land = "#3d9448";
+      const edge = "#1a4d28";
+      fillLonLat(ctx, R, deg, LAND, land, edge);
+      fillLonLat(ctx, R, deg, ICE, "#eef3f6", "#c5d0d8");
 
       const night = ctx.createLinearGradient(-R, 0, R * 0.15, 0);
-      night.addColorStop(0, "rgba(4,10,28,0.58)");
+      night.addColorStop(0, "rgba(4,10,28,0.5)");
       night.addColorStop(0.46, "rgba(4,10,28,0)");
       ctx.fillStyle = night;
       ctx.fillRect(-R, -R, R * 2, R * 2);
@@ -746,24 +698,35 @@
     ctx.stroke();
   }
 
+  function ringsNear(rings, lon0, lat0, dlon, dlat) {
+    const out = [];
+    for (let i = 0; i < rings.length; i++) {
+      const ring = rings[i];
+      for (let j = 0; j < ring.length; j++) {
+        if (Math.abs(ring[j][0] - lon0) < dlon && Math.abs(ring[j][1] - lat0) < dlat) {
+          out.push(ring);
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
   function drawContinent(ctx, R, t, env) {
     if (viewCover(R, env) > 1.18) fillBg(ctx, R, "#1a73b8", "#0c3d6a", env);
-    if (drawSprite(ctx, IMG.africa, R * 2.05, R * 2.05)) return;
     const lon0 = 20;
     const lat0 = 8;
     const kx = 1 / 42;
     const ky = 1 / 44;
-    const coast = "#1c4f28";
-    fillFlat(ctx, [AFRICA], lon0, lat0, kx, ky, R, "#3f9448", coast);
+    const coast = "#163e22";
+    const near = ringsNear(LAND, lon0, lat0, 58, 48);
+    fillFlat(ctx, near, lon0, lat0, kx, ky, R, "#3f9448", coast);
     ctx.save();
-    fillFlat(ctx, [AFRICA], lon0, lat0, kx, ky, R, "rgba(0,0,0,0)", null);
+    pathFlat(ctx, near, lon0, lat0, kx, ky, R);
     ctx.clip();
     fillFlat(ctx, [SAHARA], lon0, lat0, kx, ky, R, "#d2b06a", null);
     fillFlat(ctx, [CONGO_BASIN], lon0, lat0, kx, ky, R, "#2a6c34", null);
-    ctx.restore();
-    fillFlat(ctx, [MADAGASCAR], lon0, lat0, kx, ky, R, "#3f9448", coast);
-    fillFlat(ctx, [EUROPE, ITALY, SICILY, UK, IRELAND], lon0, lat0, kx, ky, R, "#4ca056", coast);
-    fillFlat(ctx, [ARABIA], lon0, lat0, kx, ky, R, "#c2a05c", coast);
+    fillFlat(ctx, [ARABIA], lon0, lat0, kx, ky, R, "#c2a05c", null);
     fillFlat(
       ctx,
       [[[14, -22], [26, -22], [28, -28], [20, -30], [16, -26], [14, -22]]],
@@ -775,6 +738,7 @@
       "#c4a45a",
       null
     );
+    ctx.restore();
 
     strokeFlat(
       ctx,
@@ -826,16 +790,6 @@
       }
     }
 
-    const clouds = motion(DAY * 4, t, env.rate);
-    ctx.save();
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = "#fff";
-    const cx = (clouds.phase - 0.5) * R * 0.9;
-    ctx.beginPath();
-    ctx.ellipse(cx, -0.28 * R, R * 0.16, R * 0.035, 0.15, 0, Math.PI * 2);
-    ctx.ellipse(cx + R * 0.22, 0.18 * R, R * 0.12, R * 0.028, -0.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
   }
 
   function drawCity(ctx, R, t, env) {
@@ -930,15 +884,6 @@
 
   function drawHuman(ctx, R, t, env) {
     const sway = 0.018 * Math.sin(env.wall * 0.7);
-    if (spriteReady(IMG.human)) {
-      ctx.save();
-      ctx.rotate(sway);
-      const h = R * 1.92;
-      const w = h * (IMG.human.naturalWidth / IMG.human.naturalHeight);
-      ctx.drawImage(IMG.human, -w * 0.5, -h * 0.5, w, h);
-      ctx.restore();
-      return;
-    }
     const breath = motion(4.2, t, env.rate);
     const pulse = motion(0.85, t, env.rate);
     const chest = 1 + 0.035 * Math.sin(breath.phase * Math.PI * 2) * (breath.amount || (breath.frozen ? 0 : 1));
@@ -1375,7 +1320,6 @@
 
   function drawRegion(ctx, R, t, env) {
     fillBg(ctx, R, "#7ec4f0", "#4e8a55", env);
-    if (drawSprite(ctx, IMG.landscape, R * 2.08, R * 2.08)) return;
 
     ctx.fillStyle = "#3fa0d0";
     ctx.beginPath();
