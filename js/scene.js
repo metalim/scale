@@ -333,49 +333,6 @@
     disc(ctx, mx + R * 0.015, my + R * 0.01, R * 0.012, "rgba(70,70,80,0.5)");
   }
 
-  function drawEarth(ctx, R, t, env) {
-    const rot = motion(DAY, t, env.rate);
-    glow(ctx, 0, 0, R * 1.35, "rgba(80,160,255,0.18)", "rgba(120,190,255,0.28)");
-    clipCircle(ctx, R, function () {
-      const g = ctx.createLinearGradient(-R, 0, R, 0);
-      g.addColorStop(0, "#0b2a58");
-      g.addColorStop(0.5, "#1c6fb3");
-      g.addColorStop(1, "#0a2848");
-      ctx.fillStyle = g;
-      ctx.fillRect(-R, -R, R * 2, R * 2);
-
-      ctx.save();
-      ctx.rotate(rot.phase * Math.PI * 2);
-      ctx.fillStyle = "#2f8a57";
-      blob(ctx, -R * 0.15, -R * 0.05, R * 0.42, R * 0.28, 0.4);
-      blob(ctx, R * 0.28, R * 0.05, R * 0.22, R * 0.38, -0.5);
-      blob(ctx, -R * 0.05, R * 0.42, R * 0.28, R * 0.16, 0.2);
-      ctx.fillStyle = "#c9d6c2";
-      blob(ctx, -R * 0.1, -R * 0.78, R * 0.35, R * 0.16, 0);
-      blob(ctx, 0.05 * R, R * 0.78, R * 0.28, R * 0.12, 0);
-      ctx.restore();
-
-      ctx.save();
-      ctx.rotate(rot.phase * Math.PI * 2 * 1.15);
-      ctx.fillStyle = "rgba(255,255,255,0.28)";
-      blob(ctx, R * 0.2, -R * 0.15, R * 0.5, R * 0.12, 0.8);
-      blob(ctx, -R * 0.25, R * 0.2, R * 0.4, R * 0.1, -0.4);
-      ctx.restore();
-
-      const night = ctx.createLinearGradient(-R, 0, R, 0);
-      night.addColorStop(0, "rgba(4,8,20,0.55)");
-      night.addColorStop(0.45, "rgba(4,8,20,0)");
-      night.addColorStop(1, "rgba(4,8,20,0)");
-      ctx.fillStyle = night;
-      ctx.fillRect(-R, -R, R * 2, R * 2);
-    });
-    ctx.beginPath();
-    ctx.arc(0, 0, R, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(160,210,255,0.35)";
-    ctx.lineWidth = Math.max(1, R * 0.02);
-    ctx.stroke();
-  }
-
   function blob(ctx, x, y, rx, ry, rot) {
     ctx.save();
     ctx.translate(x, y);
@@ -386,22 +343,472 @@
     ctx.restore();
   }
 
-  function drawContinent(ctx, R, t, env) {
-    fillBg(ctx, R, "#6ec4ff", "#2b7fb0", env);
+  function densifyRing(pts, stepDeg) {
+    const out = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i];
+      const b = pts[i + 1];
+      out.push(a);
+      let dlon = b[0] - a[0];
+      const dlat = b[1] - a[1];
+      if (dlon > 180) dlon -= 360;
+      if (dlon < -180) dlon += 360;
+      const dist = Math.hypot(dlon, dlat);
+      const steps = Math.max(1, Math.ceil(dist / stepDeg));
+      for (let k = 1; k < steps; k++) {
+        const t = k / steps;
+        out.push([a[0] + dlon * t, a[1] + dlat * t]);
+      }
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
 
-    ctx.fillStyle = "#5daa62";
-    blob(ctx, -R * 0.08, 0.02 * R, R * 0.72, R * 0.5, 0.25);
-    ctx.fillStyle = "#6bb56f";
-    blob(ctx, R * 0.15, -R * 0.12, R * 0.35, R * 0.22, -0.4);
-    ctx.fillStyle = "#cfd8c8";
-    blob(ctx, -R * 0.2, -R * 0.55, R * 0.2, R * 0.08, 0.2);
+  function projectSphere(lon, lat, rotDeg) {
+    const la = (lat * Math.PI) / 180;
+    const lo = ((lon - rotDeg) * Math.PI) / 180;
+    return {
+      x: Math.cos(la) * Math.sin(lo),
+      y: Math.sin(la),
+      z: Math.cos(la) * Math.cos(lo),
+    };
+  }
+
+  function clipFront(pts, rotDeg) {
+    const raw = densifyRing(pts, 2);
+    const proj = [];
+    for (let i = 0; i < raw.length; i++) proj.push(projectSphere(raw[i][0], raw[i][1], rotDeg));
+    const out = [];
+    const EPS = 0.03;
+    const n = proj.length;
+    for (let i = 0; i < n - 1; i++) {
+      const a = proj[i];
+      const b = proj[i + 1];
+      const aIn = a.z >= EPS;
+      const bIn = b.z >= EPS;
+      if (aIn) out.push(a);
+      if (aIn !== bIn) {
+        const t = (EPS - a.z) / (b.z - a.z);
+        out.push({
+          x: a.x + (b.x - a.x) * t,
+          y: a.y + (b.y - a.y) * t,
+          z: EPS,
+        });
+      }
+    }
+    return out;
+  }
+
+  function fillLonLat(ctx, R, rotDeg, rings, fill, stroke) {
+    for (let r = 0; r < rings.length; r++) {
+      const vis = clipFront(rings[r], rotDeg);
+      if (vis.length < 4) continue;
+      ctx.beginPath();
+      ctx.moveTo(vis[0].x * R, -vis[0].y * R);
+      for (let i = 1; i < vis.length; i++) ctx.lineTo(vis[i].x * R, -vis[i].y * R);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      if (stroke && R > 24) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = Math.max(0.8, R * 0.0075);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function projectFlat(lon, lat, lon0, lat0, kx, ky) {
+    const x = (lon - lon0) * Math.cos((lat * Math.PI) / 180) * kx;
+    const y = -(lat - lat0) * ky;
+    return [x, y];
+  }
+
+  function fillFlat(ctx, rings, lon0, lat0, kx, ky, s, fill, stroke) {
+    for (let r = 0; r < rings.length; r++) {
+      const pts = rings[r];
+      ctx.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        const p = projectFlat(pts[i][0], pts[i][1], lon0, lat0, kx, ky);
+        if (i === 0) ctx.moveTo(p[0] * s, p[1] * s);
+        else ctx.lineTo(p[0] * s, p[1] * s);
+      }
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      if (stroke) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = Math.max(1.2, s * 0.01);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function strokeFlat(ctx, pts, lon0, lat0, kx, ky, s, color, width) {
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const p = projectFlat(pts[i][0], pts[i][1], lon0, lat0, kx, ky);
+      if (i === 0) ctx.moveTo(p[0] * s, p[1] * s);
+      else ctx.lineTo(p[0] * s, p[1] * s);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.stroke();
+  }
+
+  function fillLocal(ctx, pts, s, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0] * s, pts[0][1] * s);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] * s, pts[i][1] * s);
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = Math.max(1, s * 0.008);
+      ctx.stroke();
+    }
+  }
+
+  // Coastlines in lon/lat. Iconic silhouettes, not cartographic accuracy.
+  const AFRICA = [
+    [-17.0, 21.0], [-16.3, 19.0], [-16.8, 16.0], [-17.5, 14.7], [-16.6, 12.4],
+    [-15.0, 11.0], [-13.0, 8.5], [-8.0, 4.5], [-5.0, 5.0], [-2.0, 5.2],
+    [0.5, 6.0], [4.5, 5.0], [8.5, 4.4], [9.8, 3.2], [9.5, 0.5],
+    [9.0, 1.5], [11.5, -5.0], [12.3, -6.0], [13.5, -12.2], [12.0, -17.0],
+    [14.5, -22.0], [16.5, -28.5], [18.4, -34.0], [18.5, -34.8], [20.0, -34.8],
+    [22.2, -34.2], [26.0, -33.8], [28.5, -33.0], [32.6, -28.6], [35.9, -18.5],
+    [40.6, -15.0], [40.5, -12.5], [39.3, -10.0], [40.4, -3.0], [41.8, -1.2],
+    [44.0, 1.5], [48.5, 5.2], [51.4, 10.5], [51.2, 11.8], [43.2, 12.6],
+    [39.6, 15.8], [38.2, 18.0], [37.0, 21.5], [36.8, 23.5], [32.6, 23.0],
+    [32.4, 29.8], [32.9, 31.2], [30.0, 31.5], [25.0, 31.8], [20.0, 32.4],
+    [11.5, 33.0], [10.2, 36.8], [8.6, 37.0], [6.5, 37.0], [3.0, 37.0],
+    [-2.2, 35.5], [-5.6, 36.0], [-9.8, 31.5], [-14.5, 26.5], [-16.0, 24.0],
+    [-17.0, 21.0],
+  ];
+  const MADAGASCAR = [
+    [49.2, -12.0], [50.5, -15.2], [47.6, -25.0], [45.2, -25.6],
+    [43.3, -22.0], [43.7, -17.0], [47.0, -13.0], [49.2, -12.0],
+  ];
+  const EUROPE = [
+    [-9.5, 39.0], [-9.0, 37.0], [-7.9, 37.0], [-6.0, 36.2], [-5.3, 36.7],
+    [-1.8, 37.2], [0.0, 39.0], [3.1, 42.5], [3.2, 43.2], [-1.5, 43.3],
+    [-1.8, 46.5], [-4.5, 48.5], [-4.8, 51.0], [-1.6, 49.5], [1.6, 49.4],
+    [2.5, 51.1], [4.5, 51.5], [6.8, 53.4], [8.6, 54.0], [10.4, 54.4],
+    [8.6, 48.6], [7.6, 47.6], [9.2, 45.5], [12.4, 45.4], [13.7, 45.6],
+    [13.8, 42.4], [12.5, 41.2], [12.5, 38.1], [15.5, 38.1], [17.2, 40.8],
+    [15.0, 41.3], [16.6, 43.5], [18.5, 42.5], [19.8, 40.2], [22.0, 37.0],
+    [24.0, 38.2], [23.0, 40.6], [26.3, 40.1], [29.0, 41.0], [27.9, 42.0],
+    [27.9, 44.2], [29.6, 45.2], [33.5, 46.0], [36.6, 45.3], [39.0, 47.2],
+    [38.0, 51.0], [32.0, 51.5], [30.0, 54.0], [24.0, 54.5], [18.5, 54.8],
+    [14.2, 53.9], [12.6, 55.6], [12.2, 56.3], [18.2, 57.4], [18.8, 63.2],
+    [16.0, 68.5], [21.0, 70.4], [25.8, 71.1], [31.1, 70.4], [28.0, 66.5],
+    [24.0, 65.0], [21.5, 61.0], [12.5, 58.9], [11.0, 59.0], [5.3, 62.0],
+    [5.0, 58.9], [8.0, 58.0], [4.9, 52.9], [1.2, 51.0], [-1.8, 48.6],
+    [-4.5, 48.0], [-9.5, 43.0], [-9.5, 39.0],
+  ];
+  const UK = [
+    [-5.7, 50.1], [-4.0, 50.3], [-2.3, 50.6], [1.4, 51.4], [1.8, 52.6],
+    [0.3, 53.6], [-0.3, 54.6], [-1.5, 55.0], [-1.8, 55.8], [-3.2, 56.0],
+    [-5.7, 55.3], [-4.9, 56.8], [-6.2, 56.8], [-5.0, 58.6], [-3.4, 57.7],
+    [-3.0, 58.6], [-6.2, 57.6], [-7.0, 57.2], [-6.2, 56.5], [-5.6, 54.6],
+    [-4.8, 53.3], [-5.3, 51.8], [-5.7, 50.1],
+  ];
+  const IRELAND = [
+    [-10.2, 51.6], [-8.2, 51.5], [-6.0, 52.1], [-6.4, 54.1], [-7.3, 55.3],
+    [-8.2, 54.8], [-10.2, 54.4], [-9.8, 53.3], [-10.2, 51.6],
+  ];
+  const SICILY = [
+    [12.4, 38.2], [15.6, 38.3], [15.1, 36.7], [12.5, 37.5], [12.4, 38.2],
+  ];
+  const ITALY = [
+    [8.2, 44.1], [9.5, 44.2], [12.4, 45.5], [13.5, 43.6], [13.8, 42.4],
+    [12.6, 41.2], [12.5, 38.15], [15.3, 38.15], [17.3, 40.5], [18.5, 40.1],
+    [16.6, 38.9], [15.5, 38.2], [16.5, 41.1], [14.3, 42.4], [12.5, 44.1],
+    [9.2, 44.0], [8.2, 44.1],
+  ];
+  const ASIA = [
+    [27.5, 41.0], [29.0, 41.0], [32.0, 36.5], [36.0, 36.5], [36.2, 35.8],
+    [40.0, 41.0], [40.2, 43.0], [40.0, 39.5], [44.0, 39.0], [48.5, 42.0],
+    [49.0, 40.0], [50.0, 40.2], [52.0, 36.5], [56.0, 27.4], [57.0, 25.6],
+    [61.5, 25.0], [67.0, 24.0], [68.0, 23.7], [69.6, 23.0], [72.8, 19.0],
+    [72.8, 21.0], [77.0, 8.1], [80.3, 13.0], [80.2, 15.5], [85.0, 20.5],
+    [87.0, 21.5], [88.4, 21.6], [91.9, 21.4], [94.5, 18.0], [97.5, 16.5],
+    [98.6, 12.0], [100.0, 6.5], [103.5, 1.3], [104.5, 1.3], [109.5, 13.4],
+    [109.0, 21.5], [107.0, 20.7], [108.0, 21.5], [114.2, 22.5], [117.0, 23.5],
+    [121.5, 25.0], [121.9, 31.2], [122.0, 31.7], [121.0, 37.5], [117.5, 38.9],
+    [122.0, 37.4], [126.5, 35.5], [129.4, 35.4], [129.3, 37.5], [128.0, 38.6],
+    [126.0, 37.8], [124.4, 40.0], [125.3, 40.2], [128.0, 41.5], [129.8, 42.0],
+    [130.7, 42.6], [133.0, 42.8], [141.0, 45.5], [145.0, 44.0], [142.0, 46.0],
+    [143.0, 49.0], [140.0, 53.0], [138.0, 54.5], [156.5, 51.0], [163.0, 56.0],
+    [161.0, 60.0], [170.0, 66.0], [180.0, 69.0], [170.0, 70.0], [140.0, 73.0],
+    [100.0, 76.0], [80.0, 73.0], [70.0, 70.0], [60.0, 70.0], [50.0, 68.0],
+    [44.0, 65.0], [42.0, 47.5], [40.0, 43.5], [36.6, 45.3], [27.5, 41.0],
+  ];
+  const ARABIA = [
+    [32.5, 31.2], [34.5, 31.3], [35.0, 29.5], [36.0, 27.5], [39.0, 20.0],
+    [43.5, 12.6], [51.0, 12.5], [54.0, 17.0], [56.4, 25.6], [55.0, 26.0],
+    [48.5, 27.8], [48.0, 29.5], [47.0, 29.8], [39.0, 22.0], [36.8, 24.0],
+    [34.9, 29.4], [32.5, 31.2],
+  ];
+  const INDIA = [
+    [68.2, 23.7], [69.6, 22.8], [72.7, 21.0], [72.8, 18.9], [73.0, 16.0],
+    [77.0, 8.1], [80.3, 13.3], [80.3, 15.8], [82.5, 16.5], [87.0, 21.5],
+    [88.4, 21.6], [80.2, 22.0], [74.0, 22.5], [70.0, 22.8], [68.2, 23.7],
+  ];
+  const SRI_LANKA = [
+    [79.7, 9.8], [81.8, 7.5], [80.2, 6.0], [79.8, 8.0], [79.7, 9.8],
+  ];
+  const NAMERICA = [
+    [-168.0, 65.6], [-165.0, 64.5], [-141.0, 60.0], [-136.0, 59.0],
+    [-130.0, 55.0], [-127.0, 50.5], [-124.6, 48.3], [-124.4, 43.0],
+    [-124.0, 40.4], [-122.0, 37.0], [-120.0, 34.5], [-117.1, 32.5],
+    [-115.0, 32.5], [-114.5, 31.0], [-112.0, 25.0], [-109.4, 23.4],
+    [-105.0, 21.5], [-97.4, 25.8], [-97.2, 26.0], [-94.0, 29.2],
+    [-90.0, 29.2], [-89.0, 29.0], [-87.5, 30.3], [-84.3, 30.0],
+    [-82.5, 27.5], [-81.3, 25.2], [-80.1, 25.4], [-80.0, 26.8],
+    [-81.5, 31.0], [-76.0, 35.2], [-75.5, 37.5], [-74.0, 40.5],
+    [-70.0, 41.8], [-70.0, 43.0], [-67.0, 44.8], [-66.0, 44.6],
+    [-64.0, 45.0], [-60.0, 47.0], [-53.0, 47.5], [-55.6, 51.5],
+    [-57.0, 51.0], [-62.0, 58.5], [-64.2, 60.3], [-77.9, 62.5],
+    [-85.0, 65.0], [-88.0, 64.0], [-92.0, 62.5], [-94.8, 60.0],
+    [-95.0, 69.0], [-88.0, 74.0], [-80.0, 73.0], [-85.0, 70.0],
+    [-105.0, 68.5], [-110.0, 68.0], [-128.0, 70.0], [-140.0, 69.5],
+    [-156.0, 71.0], [-166.0, 68.5], [-168.0, 65.6],
+  ];
+  const BAJA = [
+    [-117.1, 32.5], [-114.5, 32.5], [-109.4, 23.4], [-112.2, 24.8],
+    [-114.8, 29.0], [-117.1, 32.5],
+  ];
+  const CUBA = [
+    [-84.9, 21.9], [-77.2, 20.2], [-74.1, 20.2], [-77.8, 21.6], [-84.9, 21.9],
+  ];
+  const GREENLAND = [
+    [-73.0, 78.0], [-60.0, 76.0], [-47.0, 72.0], [-43.0, 60.0],
+    [-44.0, 60.0], [-50.0, 64.5], [-53.0, 71.0], [-68.0, 76.0], [-73.0, 78.0],
+  ];
+  const SAMERICA = [
+    [-80.0, 8.4], [-77.4, 7.5], [-76.0, 9.5], [-71.6, 12.2], [-68.2, 10.6],
+    [-61.4, 8.6], [-60.0, 8.4], [-51.6, 4.4], [-50.0, 1.8], [-47.9, -0.5],
+    [-44.0, -2.5], [-38.5, -4.0], [-34.8, -7.0], [-35.2, -9.0],
+    [-39.0, -14.0], [-39.0, -16.0], [-40.5, -20.3], [-40.6, -22.4],
+    [-43.6, -23.0], [-48.5, -25.5], [-48.7, -28.4], [-53.4, -34.0],
+    [-56.0, -35.0], [-58.4, -38.8], [-62.3, -39.0], [-65.3, -43.3],
+    [-67.2, -46.0], [-68.6, -50.0], [-68.4, -52.4], [-71.2, -53.0],
+    [-73.6, -51.6], [-75.6, -46.8], [-73.6, -41.8], [-74.0, -36.8],
+    [-71.6, -33.6], [-71.4, -29.8], [-70.4, -23.4], [-70.3, -18.3],
+    [-76.2, -14.1], [-79.0, -8.0], [-81.3, -5.0], [-80.4, -2.4],
+    [-80.1, 0.8], [-77.4, 1.4], [-79.0, 8.0], [-80.0, 8.4],
+  ];
+  const AUSTRALIA = [
+    [114.0, -22.0], [113.6, -24.8], [115.0, -30.5], [115.0, -34.4],
+    [118.5, -35.0], [124.0, -33.0], [129.0, -31.7], [133.0, -32.4],
+    [136.0, -35.3], [138.0, -36.0], [139.7, -37.5], [141.0, -38.3],
+    [146.3, -39.0], [147.0, -38.3], [149.0, -37.8], [150.2, -37.2],
+    [153.6, -28.2], [153.5, -25.0], [146.3, -18.7], [145.3, -14.9],
+    [143.5, -12.6], [142.5, -10.7], [141.6, -12.6], [136.0, -12.2],
+    [130.0, -12.4], [126.0, -14.0], [122.0, -16.5], [114.0, -22.0],
+  ];
+  const TASMANIA = [
+    [144.6, -40.7], [148.3, -40.8], [147.3, -43.6], [144.8, -43.5], [144.6, -40.7],
+  ];
+  const NZ_NORTH = [
+    [172.7, -34.4], [175.0, -36.0], [178.5, -37.6], [177.0, -39.0],
+    [174.8, -41.3], [172.7, -34.4],
+  ];
+  const NZ_SOUTH = [
+    [172.6, -40.6], [174.0, -41.6], [170.5, -45.5], [166.4, -46.2],
+    [166.7, -45.0], [172.6, -40.6],
+  ];
+  const JAPAN = [
+    [130.8, 31.4], [131.4, 31.4], [132.5, 33.2], [135.0, 34.6],
+    [136.0, 34.6], [139.8, 35.5], [140.9, 38.3], [141.4, 40.4],
+    [141.5, 41.5], [145.8, 43.4], [145.1, 44.0], [141.4, 43.0],
+    [140.3, 41.5], [139.8, 35.7], [138.0, 34.8], [131.3, 31.6], [130.8, 31.4],
+  ];
+  const ICELAND = [
+    [-24.5, 63.4], [-14.5, 64.4], [-13.5, 65.1], [-16.0, 66.5],
+    [-22.0, 66.0], [-24.5, 63.4],
+  ];
+  const ANTARCTICA = [
+    [-180, -72], [-150, -76], [-90, -73], [-60, -64], [-45, -60],
+    [0, -70], [40, -68], [80, -70], [120, -76], [160, -72], [180, -72],
+    [180, -90], [-180, -90], [-180, -72],
+  ];
+  const SAHARA = [
+    [-16.5, 18.0], [10.0, 16.0], [25.0, 18.0], [32.0, 22.0], [32.0, 30.5],
+    [25.0, 31.5], [10.0, 32.0], [-5.0, 31.0], [-16.0, 27.0], [-16.5, 18.0],
+  ];
+  const CONGO_BASIN = [
+    [10.0, 4.0], [18.0, 5.0], [27.0, 3.5], [28.0, -2.0], [25.0, -8.0],
+    [16.0, -6.0], [12.0, -4.0], [10.0, 0.0], [10.0, 4.0],
+  ];
+
+  function earthFacingDeg(t, env) {
+    const spin = motion(DAY, t, env.rate);
+    const close = env && env.viewLog != null ? smoothstep(7.85, 6.85, env.viewLog) : 0;
+    return lerp(spin.phase * 360, 18, close);
+  }
+
+  function drawEarth(ctx, R, t, env) {
+    const deg = earthFacingDeg(t, env);
+    glow(ctx, 0, 0, R * 1.28, "rgba(70,150,255,0.22)", "rgba(140,200,255,0.3)");
+    clipCircle(ctx, R, function () {
+      const ocean = ctx.createLinearGradient(-R, -R * 0.25, R, R * 0.45);
+      ocean.addColorStop(0, "#08325f");
+      ocean.addColorStop(0.45, "#1a73b8");
+      ocean.addColorStop(1, "#0a2c50");
+      ctx.fillStyle = ocean;
+      ctx.fillRect(-R, -R, R * 2, R * 2);
+
+      if (R > 48) {
+        ctx.strokeStyle = "rgba(200,230,255,0.12)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, R * 0.999, R * 0.18, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, -R);
+        ctx.lineTo(0, R);
+        ctx.stroke();
+      }
+
+      const land = "#3c8f45";
+      const edge = "#1f5a2c";
+      fillLonLat(ctx, R, deg, [AFRICA, MADAGASCAR], land, edge);
+      fillLonLat(ctx, R, deg, [EUROPE, UK, IRELAND, ITALY, SICILY, ICELAND], "#4ca056", edge);
+      fillLonLat(ctx, R, deg, [ASIA, INDIA, SRI_LANKA, JAPAN], "#3a8442", edge);
+      fillLonLat(ctx, R, deg, [ARABIA], "#c2a05c", edge);
+      fillLonLat(ctx, R, deg, [NAMERICA, BAJA, CUBA, GREENLAND], "#4aa057", edge);
+      fillLonLat(ctx, R, deg, [SAMERICA], "#3b8a44", edge);
+      fillLonLat(ctx, R, deg, [AUSTRALIA, TASMANIA, NZ_NORTH, NZ_SOUTH], "#6a9a40", edge);
+      fillLonLat(ctx, R, deg, [SAHARA], "#c4a35a", null);
+      fillLonLat(ctx, R, deg, [CONGO_BASIN], "#2d6e36", null);
+      fillLonLat(ctx, R, deg, [ANTARCTICA], "#eef3f6", "#c5d0d8");
+      fillLonLat(ctx, R, deg, [GREENLAND], "#e6eef2", null);
+
+      const n = projectSphere(0, 88, deg);
+      if (n.z > 0.05) {
+        ctx.fillStyle = "#eef3f6";
+        ctx.beginPath();
+        ctx.ellipse(n.x * R, -n.y * R, R * 0.26 * n.z, R * 0.14, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (R > 70) {
+        ctx.save();
+        ctx.globalAlpha = 0.16;
+        ctx.fillStyle = "#ffffff";
+        const drift = motion(DAY * 3.2, t, env.rate);
+        const cx = (drift.phase - 0.5) * R * 0.7;
+        for (let i = 0; i < 6; i++) {
+          const x = cx + (hash2(i, 2) - 0.5) * R * 0.9;
+          const y = (hash2(i, 7) - 0.55) * R * 0.7;
+          ctx.beginPath();
+          ctx.ellipse(x, y, R * 0.12, R * 0.028, 0.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      const night = ctx.createLinearGradient(-R, 0, R * 0.15, 0);
+      night.addColorStop(0, "rgba(4,10,28,0.58)");
+      night.addColorStop(0.46, "rgba(4,10,28,0)");
+      ctx.fillStyle = night;
+      ctx.fillRect(-R, -R, R * 2, R * 2);
+    });
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(170,215,255,0.45)";
+    ctx.lineWidth = Math.max(1, R * 0.016);
+    ctx.stroke();
+  }
+
+  function drawContinent(ctx, R, t, env) {
+    if (viewCover(R, env) > 1.18) fillBg(ctx, R, "#1a73b8", "#0c3d6a", env);
+    const lon0 = 20;
+    const lat0 = 8;
+    const kx = 1 / 42;
+    const ky = 1 / 44;
+    const coast = "#1c4f28";
+    fillFlat(ctx, [AFRICA], lon0, lat0, kx, ky, R, "#3f9448", coast);
+    fillFlat(ctx, [MADAGASCAR], lon0, lat0, kx, ky, R, "#3f9448", coast);
+    fillFlat(ctx, [EUROPE, ITALY, SICILY, UK, IRELAND], lon0, lat0, kx, ky, R, "#4ca056", coast);
+    fillFlat(ctx, [ARABIA], lon0, lat0, kx, ky, R, "#c2a05c", coast);
+    fillFlat(ctx, [SAHARA], lon0, lat0, kx, ky, R, "#d2b06a", null);
+    fillFlat(ctx, [CONGO_BASIN], lon0, lat0, kx, ky, R, "#2a6c34", null);
+    fillFlat(
+      ctx,
+      [[[14, -22], [26, -22], [28, -28], [20, -30], [16, -26], [14, -22]]],
+      lon0,
+      lat0,
+      kx,
+      ky,
+      R,
+      "#c4a45a",
+      null
+    );
+
+    strokeFlat(
+      ctx,
+      [[31.2, 31.2], [31.0, 27.0], [32.5, 22.0], [32.6, 15.6], [31.5, 12.0], [32.5, 6.0]],
+      lon0,
+      lat0,
+      kx,
+      ky,
+      R,
+      "#2a6aa8",
+      Math.max(1.5, R * 0.012)
+    );
+    strokeFlat(
+      ctx,
+      [[-5, 16], [0, 16], [4, 14], [8, 12], [14, 6]],
+      lon0,
+      lat0,
+      kx,
+      ky,
+      R,
+      "#3a7ec8",
+      Math.max(1.2, R * 0.01)
+    );
+
+    ctx.fillStyle = "#2a6aa8";
+    const lakes = [
+      [33.0, 1.0],
+      [32.0, -2.0],
+      [29.0, -6.0],
+    ];
+    for (let i = 0; i < lakes.length; i++) {
+      const p = projectFlat(lakes[i][0], lakes[i][1], lon0, lat0, kx, ky);
+      ctx.beginPath();
+      ctx.ellipse(p[0] * R, p[1] * R, R * 0.035, R * 0.055, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (R > 70) {
+      const cities = [
+        [31.2, 30.0],
+        [3.1, 6.5],
+        [18.4, -33.9],
+        [36.8, -1.3],
+      ];
+      ctx.fillStyle = "#d8c48a";
+      for (let i = 0; i < cities.length; i++) {
+        const p = projectFlat(cities[i][0], cities[i][1], lon0, lat0, kx, ky);
+        ctx.fillRect(p[0] * R - 2, p[1] * R - 2, 4, 4);
+      }
+    }
 
     const clouds = motion(DAY * 4, t, env.rate);
     ctx.save();
-    ctx.translate(clouds.phase * R * 0.4 - R * 0.2, 0);
-    ctx.fillStyle = "rgba(255,255,255,0.35)";
-    blob(ctx, 0, -R * 0.1, R * 0.28, R * 0.08, 0.1);
-    blob(ctx, R * 0.3, R * 0.18, R * 0.22, R * 0.06, -0.2);
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = "#fff";
+    const cx = (clouds.phase - 0.5) * R * 0.9;
+    ctx.beginPath();
+    ctx.ellipse(cx, -0.28 * R, R * 0.16, R * 0.035, 0.15, 0, Math.PI * 2);
+    ctx.ellipse(cx + R * 0.22, 0.18 * R, R * 0.12, R * 0.028, -0.2, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -485,87 +892,111 @@
   }
 
   function tree(ctx, x, y, s, t) {
-    ctx.fillStyle = "#6a4a32";
-    ctx.fillRect(x - s * 0.06, y, s * 0.12, s * 0.7);
-    ctx.fillStyle = "#3f8f4a";
     const sway = Math.sin(t * 0.0002 + x) * 0.05;
-    blob(ctx, x + sway * s, y - s * 0.15, s * 0.45, s * 0.4, sway);
+    ctx.fillStyle = "#6a4a32";
+    ctx.fillRect(x - s * 0.055, y, s * 0.11, s * 0.72);
+    ctx.fillStyle = "#2f7a3a";
+    disc(ctx, x + sway * s, y - s * 0.05, s * 0.28, "#2f7a3a");
+    disc(ctx, x - s * 0.16 + sway * s, y + s * 0.02, s * 0.2, "#3b8c44");
+    disc(ctx, x + s * 0.16 + sway * s, y + s * 0.04, s * 0.18, "#34843f");
+    disc(ctx, x + sway * s, y - s * 0.22, s * 0.22, "#45a050");
   }
 
   function drawHuman(ctx, R, t, env) {
     const breath = motion(4.2, t, env.rate);
     const pulse = motion(0.85, t, env.rate);
-    const chest = 1 + 0.04 * Math.sin(breath.phase * Math.PI * 2) * (breath.amount || (breath.frozen ? 0 : 1));
-    const sway = 0.025 * Math.sin(env.wall * 0.7);
+    const chest = 1 + 0.035 * Math.sin(breath.phase * Math.PI * 2) * (breath.amount || (breath.frozen ? 0 : 1));
+    const sway = 0.02 * Math.sin(env.wall * 0.7);
+    const h = R * 1.78;
+    const w = h * 0.23;
+    const skin = "#e4b48c";
+    const shirt = "#2a4a78";
+    const pants = "#2b3038";
 
     ctx.save();
     ctx.rotate(sway);
-
-    const skin = "#e4b48c";
-    const cloth = "#2a4a78";
-    const pants = "#2b3038";
-    const h = R * 1.72;
-    const w = h * 0.22;
-
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = skin;
-    ctx.lineWidth = w * 0.22;
-    ctx.beginPath();
-    ctx.moveTo(-w * 0.42, -h * 0.08);
-    ctx.lineTo(-w * 0.85, h * 0.18);
-    ctx.moveTo(w * 0.42, -h * 0.08);
-    ctx.lineTo(w * 0.82, h * 0.16);
-    ctx.stroke();
 
     ctx.strokeStyle = pants;
-    ctx.lineWidth = w * 0.28;
+    ctx.lineWidth = w * 0.3;
     ctx.beginPath();
-    ctx.moveTo(-w * 0.18, h * 0.18);
-    ctx.lineTo(-w * 0.22, h * 0.62);
-    ctx.moveTo(w * 0.18, h * 0.18);
-    ctx.lineTo(w * 0.24, h * 0.62);
+    ctx.moveTo(-w * 0.16, h * 0.12);
+    ctx.lineTo(-w * 0.22, h * 0.52);
+    ctx.lineTo(-w * 0.2, h * 0.68);
+    ctx.moveTo(w * 0.16, h * 0.12);
+    ctx.lineTo(w * 0.24, h * 0.52);
+    ctx.lineTo(w * 0.22, h * 0.68);
     ctx.stroke();
 
     ctx.fillStyle = "#3a2a22";
     ctx.beginPath();
-    ctx.ellipse(-w * 0.22, h * 0.72, w * 0.18, w * 0.08, 0.1, 0, Math.PI * 2);
+    ctx.ellipse(-w * 0.2, h * 0.72, w * 0.16, w * 0.07, 0.12, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(w * 0.24, h * 0.72, w * 0.18, w * 0.08, -0.1, 0, Math.PI * 2);
+    ctx.ellipse(w * 0.22, h * 0.72, w * 0.16, w * 0.07, -0.12, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = cloth;
+    ctx.strokeStyle = skin;
+    ctx.lineWidth = w * 0.2;
     ctx.beginPath();
-    ctx.ellipse(0, 0.02 * h, w * 0.5 * chest, h * 0.2, 0, 0, Math.PI * 2);
+    ctx.moveTo(-w * 0.42 * chest, -h * 0.08);
+    ctx.lineTo(-w * 0.78, h * 0.14);
+    ctx.lineTo(-w * 0.86, h * 0.22);
+    ctx.moveTo(w * 0.42 * chest, -h * 0.08);
+    ctx.lineTo(w * 0.76, h * 0.12);
+    ctx.lineTo(w * 0.84, h * 0.2);
+    ctx.stroke();
+    ctx.fillStyle = skin;
+    ctx.beginPath();
+    ctx.arc(-w * 0.86, h * 0.24, w * 0.09, 0, Math.PI * 2);
+    ctx.arc(w * 0.84, h * 0.22, w * 0.09, 0, Math.PI * 2);
     ctx.fill();
 
-    disc(ctx, 0, -h * 0.36, w * 0.3, skin);
+    ctx.fillStyle = shirt;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.48 * chest, -h * 0.16);
+    ctx.lineTo(w * 0.48 * chest, -h * 0.16);
+    ctx.lineTo(w * 0.38, h * 0.16);
+    ctx.lineTo(-w * 0.38, h * 0.16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#1e3a62";
+    ctx.fillRect(-w * 0.06, -h * 0.16, w * 0.12, h * 0.28);
+
+    ctx.fillStyle = skin;
+    ctx.fillRect(-w * 0.08, -h * 0.22, w * 0.16, h * 0.08);
+
+    disc(ctx, 0, -h * 0.38, w * 0.28, skin);
     ctx.fillStyle = "#3a2a22";
     ctx.beginPath();
-    ctx.ellipse(0, -h * 0.42, w * 0.32, w * 0.26, 0, Math.PI * 1.05, Math.PI * 1.95);
+    ctx.ellipse(0, -h * 0.44, w * 0.3, w * 0.24, 0, Math.PI * 1.05, Math.PI * 1.95);
     ctx.fill();
-
     ctx.fillStyle = "#2a2018";
     ctx.beginPath();
-    ctx.arc(-w * 0.1, -h * 0.36, w * 0.045, 0, Math.PI * 2);
-    ctx.arc(w * 0.1, -h * 0.36, w * 0.045, 0, Math.PI * 2);
+    ctx.arc(-w * 0.09, -h * 0.38, w * 0.04, 0, Math.PI * 2);
+    ctx.arc(w * 0.09, -h * 0.38, w * 0.04, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = "#c47a6a";
+    ctx.lineWidth = Math.max(1, w * 0.04);
+    ctx.beginPath();
+    ctx.arc(0, -h * 0.34, w * 0.1, 0.15, Math.PI - 0.15);
+    ctx.stroke();
 
     const beat = 0.5 + 0.5 * Math.sin(pulse.phase * Math.PI * 2);
     ctx.fillStyle = "rgba(200, 40, 60," + (0.28 + beat * 0.5) + ")";
     ctx.beginPath();
-    ctx.arc(-w * 0.1, -h * 0.02, w * 0.11 * (0.9 + beat * 0.18), 0, Math.PI * 2);
+    ctx.moveTo(-w * 0.12, -h * 0.04);
+    ctx.bezierCurveTo(-w * 0.12, -h * 0.1, 0, -h * 0.1, 0, -h * 0.04);
+    ctx.bezierCurveTo(0, -h * 0.1, w * 0.12, -h * 0.1, w * 0.12, -h * 0.04);
+    ctx.bezierCurveTo(w * 0.12, h * 0.04, 0, h * 0.08, 0, h * 0.08);
+    ctx.bezierCurveTo(0, h * 0.08, -w * 0.12, h * 0.04, -w * 0.12, -h * 0.04);
     ctx.fill();
 
     ctx.restore();
   }
-
   function drawSkin(ctx, R, t, env) {
     fillBg(ctx, R, "#f0c4a4", "#d29a78", env);
-    if (viewCover(R, env) < 0.9) {
-      softBody(ctx, R, "rgba(240,196,164,0.85)");
-    }
 
     ctx.strokeStyle = "rgba(160,90,70,0.18)";
     ctx.lineWidth = 1;
@@ -589,52 +1020,78 @@
   function drawCell(ctx, R, t, env) {
     fillBg(ctx, R, "#163028", "#0b1a14", env);
     const wobble = motion(6, t, env.rate);
-    const k = 1 + 0.02 * Math.sin(wobble.phase * Math.PI * 2);
+    const k = 1 + 0.018 * Math.sin(wobble.phase * Math.PI * 2);
 
     ctx.save();
     ctx.scale(k, 1 / k);
+
     ctx.beginPath();
-    ctx.ellipse(0, 0, R * 0.92, R * 0.78, 0.15, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(70, 160, 120, 0.22)";
+    for (let i = 0; i <= 40; i++) {
+      const a = (i / 40) * Math.PI * 2;
+      const rr = R * (0.88 + 0.04 * Math.sin(a * 3) + 0.02 * Math.sin(a * 7 + 1));
+      const x = Math.cos(a) * rr;
+      const y = Math.sin(a) * rr * 0.86;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = "rgba(50, 140, 105, 0.28)";
     ctx.fill();
-    ctx.strokeStyle = "rgba(160, 230, 180, 0.7)";
-    ctx.lineWidth = Math.max(2, R * 0.03);
+    ctx.strokeStyle = "rgba(170, 235, 190, 0.85)";
+    ctx.lineWidth = Math.max(3, R * 0.034);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(40, 90, 70, 0.55)";
+    ctx.lineWidth = Math.max(1.2, R * 0.012);
     ctx.stroke();
 
-    ctx.strokeStyle = "rgba(180,255,200,0.12)";
+    ctx.strokeStyle = "rgba(180,255,200,0.1)";
     ctx.lineWidth = 1;
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
       ctx.beginPath();
-      ctx.moveTo(Math.cos(a) * R * 0.2, Math.sin(a) * R * 0.18);
-      ctx.lineTo(Math.cos(a) * R * 0.85, Math.sin(a) * R * 0.72);
+      ctx.moveTo(Math.cos(a) * R * 0.22, Math.sin(a) * R * 0.18);
+      ctx.lineTo(Math.cos(a) * R * 0.78, Math.sin(a) * R * 0.68);
       ctx.stroke();
     }
 
     const stream = motion(14, t, env.rate);
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 16; i++) {
       const u = (hash2(i, 1) + stream.phase) % 1;
       const a = u * Math.PI * 2 + hash2(i, 2);
-      const d = 0.3 + hash2(i, 3) * 0.5;
-      disc(ctx, Math.cos(a) * d * R, Math.sin(a) * d * R * 0.85, R * 0.018, "rgba(220,255,180,0.45)");
+      const d = 0.32 + hash2(i, 3) * 0.42;
+      disc(ctx, Math.cos(a) * d * R, Math.sin(a) * d * R * 0.85, R * 0.016, "rgba(220,255,180,0.45)");
     }
 
     for (const o of ORGANELLES) {
       const p = motion(9 + o.p * 5, t, env.rate);
-      const ox = o.x * R + Math.cos(p.phase * 6.28) * R * 0.06;
-      const oy = o.y * R + Math.sin(p.phase * 6.28) * R * 0.05;
+      const ox = o.x * R + Math.cos(p.phase * 6.28) * R * 0.05;
+      const oy = o.y * R + Math.sin(p.phase * 6.28) * R * 0.04;
       if (o.kind === "mito") {
-        ctx.fillStyle = "rgba(220, 90, 70, 0.7)";
+        ctx.save();
+        ctx.translate(ox, oy);
+        ctx.rotate(o.p);
+        ctx.fillStyle = "#c45a42";
         ctx.beginPath();
-        ctx.ellipse(ox, oy, o.a * R, o.b * R, o.p, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, o.a * R, o.b * R, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = "#7a2e22";
+        ctx.lineWidth = Math.max(1, o.b * R * 0.18);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(255, 200, 160, 0.7)";
+        ctx.lineWidth = Math.max(1, o.b * R * 0.12);
+        for (let k = -2; k <= 2; k++) {
+          ctx.beginPath();
+          ctx.moveTo(-o.a * R * 0.55, k * o.b * R * 0.28);
+          ctx.lineTo(o.a * R * 0.55, k * o.b * R * 0.28);
+          ctx.stroke();
+        }
+        ctx.restore();
       } else {
-        disc(ctx, ox, oy, o.a * R * 0.45, "rgba(240, 220, 120, 0.55)");
+        disc(ctx, ox, oy, o.a * R * 0.42, "rgba(240, 220, 120, 0.6)");
       }
     }
     ctx.restore();
   }
-
   function drawNucleusCell(ctx, R, t, env) {
     fillBg(ctx, R, "#2a1830", "#120814", env);
     ctx.beginPath();
@@ -883,21 +1340,99 @@
 
   function drawRegion(ctx, R, t, env) {
     fillBg(ctx, R, "#7ec4f0", "#4e8a55", env);
-    ctx.fillStyle = "#5ea45c";
-    blob(ctx, -R * 0.2, 0, R * 0.7, R * 0.45, 0.2);
-    ctx.fillStyle = "#c9d39a";
-    blob(ctx, R * 0.25, R * 0.1, R * 0.35, R * 0.2, -0.3);
-    ctx.strokeStyle = "rgba(60,120,170,0.7)";
-    ctx.lineWidth = Math.max(2, R * 0.02);
-    ctx.beginPath();
-    ctx.moveTo(-R, R * 0.2);
-    ctx.quadraticCurveTo(0, 0, R, R * 0.25);
-    ctx.stroke();
-    const clouds = motion(DAY * 2, t, env.rate);
-    ctx.fillStyle = "rgba(255,255,255,0.4)";
-    blob(ctx, (clouds.phase - 0.5) * R, -R * 0.35, R * 0.25, R * 0.07, 0);
-  }
 
+    ctx.fillStyle = "#3fa0d0";
+    ctx.beginPath();
+    ctx.moveTo(-R, R * 0.12);
+    ctx.quadraticCurveTo(-R * 0.4, R * 0.42, 0, R * 0.28);
+    ctx.quadraticCurveTo(R * 0.45, R * 0.12, R, R * 0.38);
+    ctx.lineTo(R, R);
+    ctx.lineTo(-R, R);
+    ctx.closePath();
+    ctx.fill();
+
+    fillLocal(
+      ctx,
+      [
+        [-1.05, 0.12], [-0.7, 0.02], [-0.42, 0.16], [-0.1, 0.04],
+        [0.22, 0.18], [0.55, 0.06], [1.05, 0.22], [1.05, -1.05],
+        [-1.05, -1.05], [-1.05, 0.12],
+      ],
+      R,
+      "#5aa45a",
+      null
+    );
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(-R, -R, R * 2, R * 2);
+    ctx.clip();
+    for (let row = -6; row < 4; row++) {
+      for (let col = -6; col < 7; col++) {
+        const x = (col * 0.16 + (row % 2) * 0.05) * R;
+        const y = (row * 0.14 - 0.12) * R;
+        if (y > R * 0.12) continue;
+        ctx.fillStyle = hash2(row + 20, col + 7) < 0.35 ? "#d2c46a" : hash2(row, col) < 0.5 ? "#4e9648" : "#6aad52";
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(0.08);
+        ctx.fillRect(-0.07 * R, -0.055 * R, 0.13 * R, 0.1 * R);
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+
+    fillLocal(
+      ctx,
+      [[-0.85, -0.62], [-0.55, -0.72], [-0.22, -0.55], [-0.38, -0.32], [-0.72, -0.38], [-0.85, -0.62]],
+      R,
+      "#2f6d38",
+      "#1f4c28"
+    );
+    fillLocal(
+      ctx,
+      [[0.42, -0.55], [0.72, -0.62], [0.88, -0.38], [0.62, -0.22], [0.38, -0.32], [0.42, -0.55]],
+      R,
+      "#2f6d38",
+      "#1f4c28"
+    );
+
+    ctx.strokeStyle = "#2a6aa8";
+    ctx.lineWidth = Math.max(3, R * 0.028);
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.9, -R * 0.35);
+    ctx.quadraticCurveTo(-0.2 * R, -0.05 * R, 0.15 * R, 0.18 * R);
+    ctx.quadraticCurveTo(0.45 * R, 0.32 * R, R * 0.2, R * 0.55);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#c9c2a8";
+    ctx.lineWidth = Math.max(1.5, R * 0.012);
+    ctx.beginPath();
+    ctx.moveTo(-R, -0.05 * R);
+    ctx.lineTo(R * 0.15, 0.05 * R);
+    ctx.lineTo(R * 0.15, -R);
+    ctx.stroke();
+
+    ctx.fillStyle = "#8a8680";
+    ctx.fillRect(0.02 * R, -0.08 * R, 0.22 * R, 0.16 * R);
+    ctx.fillStyle = "#6e6a66";
+    for (let i = 0; i < 8; i++) {
+      const x = (0.04 + (i % 4) * 0.05) * R;
+      const y = (-0.06 + Math.floor(i / 4) * 0.06) * R;
+      ctx.fillRect(x, y, 0.04 * R, 0.04 * R);
+    }
+    ctx.fillStyle = "rgba(255, 220, 140, 0.35)";
+    ctx.fillRect(0.05 * R, -0.05 * R, 0.16 * R, 0.1 * R);
+
+    const clouds = motion(DAY * 2, t, env.rate);
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.ellipse((clouds.phase - 0.5) * R, -R * 0.72, R * 0.18, R * 0.05, 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   function drawChromosome(ctx, R, t, env) {
     fillBg(ctx, R, "#24101c", "#0e060c", env);
     const drift = motion(16, t, env.rate);
@@ -1117,7 +1652,7 @@
     const region = node({
       id: "region",
       name: "Ландшафт",
-      desc: "Поля, река, город как пятно",
+      desc: "Поля, лес, река, город на побережье",
       size: 2.2e5,
       interior: "#7ec4f0",
       draw: drawRegion,
@@ -1126,8 +1661,8 @@
     const continent = node({
       id: "continent",
       name: "Континент",
-      desc: "Суша, облачные поля",
-      size: 2.8e6,
+      desc: "Африка, Сахара, Нил, Мадагаскар",
+      size: 8.2e6,
       interior: "#3fa0d8",
       draw: drawContinent,
       children: [region],
