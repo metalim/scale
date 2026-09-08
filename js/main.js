@@ -181,25 +181,35 @@
     }
   }
 
-  function layerAlpha(size, viewMeters) {
-    const d = Math.log10(viewMeters / size);
-    return smoothstep(-2.0, -0.35, d) * (1 - smoothstep(0.35, 2.0, d));
+  function bracket(viewMeters) {
+    const n = path.length;
+    if (viewMeters >= path[0].size) return { lo: path[0], hi: null, t: 0 };
+    if (viewMeters <= path[n - 1].size) return { lo: null, hi: path[n - 1], t: 1 };
+    for (let i = 0; i < n - 1; i++) {
+      if (viewMeters <= path[i].size && viewMeters >= path[i + 1].size) {
+        const a = Math.log10(path[i].size);
+        const b = Math.log10(path[i + 1].size);
+        const v = Math.log10(viewMeters);
+        return { lo: path[i], hi: path[i + 1], t: (a - v) / (a - b) };
+      }
+    }
+    return { lo: path[0], hi: null, t: 0 };
+  }
+
+  function paintLayer(node, alpha, displayR, env) {
+    if (!node || alpha < 0.02 || typeof node.draw !== "function") return;
+    ctx.save();
+    ctx.translate(W * 0.5, H * 0.52);
+    ctx.globalAlpha = alpha;
+    node.draw(ctx, displayR, env.t, env);
+    ctx.restore();
   }
 
   function renderLayers(env, viewMeters) {
-    const cx = W * 0.5;
-    const cy = H * 0.52;
-    for (let i = 0; i < path.length; i++) {
-      const node = path[i];
-      const a = layerAlpha(node.size, viewMeters);
-      if (a < 0.02 || typeof node.draw !== "function") continue;
-      const radiusPx = ((node.size * 0.5) / viewMeters) * H;
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.globalAlpha = a;
-      node.draw(ctx, radiusPx, env.t, env);
-      ctx.restore();
-    }
+    const { lo, hi, t } = bracket(viewMeters);
+    const displayR = Math.min(W, H) * 0.42;
+    paintLayer(lo, 1 - t, displayR, env);
+    paintLayer(hi, t, displayR, env);
   }
 
   function drawScaleBar(viewMeters) {

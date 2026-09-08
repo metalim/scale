@@ -91,10 +91,10 @@
     const W = (env && env.W) || ctx.canvas.clientWidth || 800;
     const H = (env && env.H) || ctx.canvas.clientHeight || 600;
     const cover = (R * 2) / Math.min(W, H);
-    const t = smoothstep(0.9, 1.45, cover);
-    if (t < 0.01) return;
+    const fade = smoothstep(0.55, 1.05, cover);
+    if (fade < 0.01) return;
     ctx.save();
-    ctx.globalAlpha *= t;
+    ctx.globalAlpha *= fade;
     const s = Math.max(W, H);
     const g = ctx.createRadialGradient(0, 0, s * 0.08, 0, 0, s * 0.95);
     g.addColorStop(0, c0);
