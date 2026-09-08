@@ -702,12 +702,15 @@
     const out = [];
     for (let i = 0; i < rings.length; i++) {
       const ring = rings[i];
+      let sx = 0;
+      let sy = 0;
       for (let j = 0; j < ring.length; j++) {
-        if (Math.abs(ring[j][0] - lon0) < dlon && Math.abs(ring[j][1] - lat0) < dlat) {
-          out.push(ring);
-          break;
-        }
+        sx += ring[j][0];
+        sy += ring[j][1];
       }
+      const cx = sx / ring.length;
+      const cy = sy / ring.length;
+      if (Math.abs(cx - lon0) < dlon && Math.abs(cy - lat0) < dlat) out.push(ring);
     }
     return out;
   }
@@ -724,20 +727,8 @@
     ctx.save();
     pathFlat(ctx, near, lon0, lat0, kx, ky, R);
     ctx.clip();
-    fillFlat(ctx, [SAHARA], lon0, lat0, kx, ky, R, "#d2b06a", null);
-    fillFlat(ctx, [CONGO_BASIN], lon0, lat0, kx, ky, R, "#2a6c34", null);
-    fillFlat(ctx, [ARABIA], lon0, lat0, kx, ky, R, "#c2a05c", null);
-    fillFlat(
-      ctx,
-      [[[14, -22], [26, -22], [28, -28], [20, -30], [16, -26], [14, -22]]],
-      lon0,
-      lat0,
-      kx,
-      ky,
-      R,
-      "#c4a45a",
-      null
-    );
+    fillFlat(ctx, [SAHARA], lon0, lat0, kx, ky, R, "rgba(210,176,106,0.55)", null);
+    fillFlat(ctx, [CONGO_BASIN], lon0, lat0, kx, ky, R, "rgba(42,110,52,0.45)", null);
     ctx.restore();
 
     strokeFlat(
