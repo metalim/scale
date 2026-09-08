@@ -189,8 +189,14 @@
       const node = path[i];
       if (typeof node.draw !== "function") continue;
       const rPx = (node.size * 0.5) / viewMeters * H;
-      const fadeIn = smoothstep(2, 20, rPx);
-      const fadeOut = 1 - smoothstep(minSide * 1.8, minSide * 10, rPx);
+      const fadeIn = smoothstep(2, 22, rPx);
+      let fadeOut = 1;
+      if (i + 1 < path.length) {
+        const childR = (path[i + 1].size * 0.5) / viewMeters * H;
+        fadeOut = 1 - smoothstep(minSide * 0.45, minSide * 1.1, childR);
+      } else {
+        fadeOut = 1 - smoothstep(minSide * 2.2, minSide * 8, rPx);
+      }
       const a = fadeIn * fadeOut;
       if (a < 0.02) continue;
       ctx.save();

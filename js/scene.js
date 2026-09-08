@@ -388,9 +388,6 @@
 
   function drawContinent(ctx, R, t, env) {
     fillBg(ctx, R, "#6ec4ff", "#2b7fb0", env);
-    if (viewCover(R, env) < 0.9) {
-      softBody(ctx, R, "rgba(63,160,216,0.55)");
-    }
 
     ctx.fillStyle = "#5daa62";
     blob(ctx, -R * 0.08, 0.02 * R, R * 0.72, R * 0.5, 0.25);
