@@ -135,6 +135,8 @@
       .join("");
   }
 
+  let lastLegend = "";
+
   function updateHud(viewMeters, rate) {
     const focus = nearestFocus(viewMeters);
     if (nameEl.textContent !== focus.name) nameEl.textContent = focus.name;
@@ -155,12 +157,28 @@
       .sort(function (a, b) {
         return b.n.size - a.n.size;
       });
-    legendEl.innerHTML = items
+    const key = items
       .map(function (it) {
-        const hot = it.n === focus ? "<b>" + it.n.name + "</b>" : it.n.name;
-        return hot + "<br>";
+        return it.n.id + (it.n === focus ? "*" : "");
       })
-      .join("");
+      .join("|");
+    if (key !== lastLegend) {
+      lastLegend = key;
+      legendEl.innerHTML = items
+        .map(function (it) {
+          const hot = it.n === focus ? " hot" : "";
+          return (
+            '<button type="button" class="legend-item' +
+            hot +
+            '" data-log="' +
+            Math.log10(it.n.size) +
+            '">' +
+            it.n.name +
+            "</button>"
+          );
+        })
+        .join("");
+    }
   }
 
   function renderNode(node, cx, cy, radiusPx, env) {
@@ -262,17 +280,21 @@
     ctx.fillStyle = bgColor(logView);
     ctx.fillRect(0, 0, W, H);
 
-    if (logView > 8.2) {
-      ctx.save();
-      window.ScaleScene.drawStarsBackdrop(ctx, Math.max(W, H));
-      ctx.restore();
+    try {
+      if (logView > 8.2) {
+        ctx.save();
+        window.ScaleScene.drawStarsBackdrop(ctx, Math.max(W, H));
+        ctx.restore();
+      }
+
+      const env = { t: simTime, rate: rate, wall: wall, viewLog: logView, W: W, H: H };
+      const worldR = ((world.size * 0.5) / viewMeters) * H;
+      renderNode(world, W * 0.5, H * 0.52, worldR, env);
+
+      drawScaleBar(viewMeters);
+    } catch (err) {
+      console.error(err);
     }
-
-    const env = { t: simTime, rate: rate, wall: wall, viewLog: logView, W: W, H: H };
-    const worldR = ((world.size * 0.5) / viewMeters) * H;
-    renderNode(world, W * 0.5, H * 0.52, worldR, env);
-
-    drawScaleBar(viewMeters);
     updateHud(viewMeters, paused ? timeRate(logView) : rate);
 
     requestAnimationFrame(frame);
@@ -363,7 +385,13 @@
     else if (e.key === "ArrowDown") zoomBy(0.18);
   });
 
-  window.addEventListener("resize", resize);
+  legendEl.addEventListener("click", function (e) {
+    const btn = e.target.closest("[data-log]");
+    if (!btn) return;
+    touring = false;
+    btnTour.classList.remove("active");
+    targetLog = Number(btn.getAttribute("data-log"));
+  });
   resize();
   drawTicks();
   slider.value = String(logToSlider(HUMAN_LOG));

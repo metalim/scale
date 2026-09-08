@@ -178,14 +178,34 @@
     ctx.fill();
   }
 
+  function withAlpha(color, a) {
+    const c = String(color || "#ffffff");
+    if (c.charAt(0) === "#" && (c.length === 4 || c.length === 7)) {
+      let h = c.slice(1);
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      const r = parseInt(h.slice(0, 2), 16);
+      const g = parseInt(h.slice(2, 4), 16);
+      const b = parseInt(h.slice(4, 6), 16);
+      return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+    }
+    return c;
+  }
+
   function glow(ctx, x, y, r, color, inner) {
-    const g = ctx.createRadialGradient(x, y, 0, x, y, Math.max(r, 1));
-    g.addColorStop(0, inner || color);
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+    try {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, Math.max(r, 1));
+      g.addColorStop(0, inner || color);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    } catch (err) {
+      ctx.fillStyle = color || "#fff";
+      ctx.beginPath();
+      ctx.arc(x, y, Math.max(r * 0.25, 1), 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   function parseOx(v, t) {
@@ -207,6 +227,7 @@
     disc: disc,
     glow: glow,
     parseOx: parseOx,
+    withAlpha: withAlpha,
     YEAR: 31557600,
     DAY: 86400,
     AU: 1.495978707e11,

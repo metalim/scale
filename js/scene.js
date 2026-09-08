@@ -2,7 +2,7 @@
   "use strict";
 
   const U = global.ScaleUtil;
-  const { lerp, smoothstep, mulberry32, hash2, motion, disc, glow, YEAR, DAY, AU } = U;
+  const { lerp, smoothstep, mulberry32, hash2, motion, disc, glow, YEAR, DAY, AU, withAlpha, clamp } = U;
 
   function rngArray(seed, n, fn) {
     const r = mulberry32(seed);
@@ -248,14 +248,15 @@
       ctx.stroke();
     }
 
-    glow(ctx, sunX, sunY, sunR * 6, "rgba(255,170,40,0.18)", "rgba(255,230,140,0.6)");
-    disc(ctx, sunX, sunY, sunR, "#ffd27a");
+    glow(ctx, sunX, sunY, Math.max(sunR * 8, 28), "rgba(255,170,40,0.22)", "rgba(255,230,140,0.7)");
+    disc(ctx, sunX, sunY, Math.max(sunR, 16), "#ffd27a");
 
     for (const pl of planets) {
       const pos = keplerPos(pl.a, pl.e, pl.p, t, 0.1);
       const x = sunX + pos.x * m2;
       const y = sunY + pos.y * m2;
-      disc(ctx, x, y, Math.max(1.6, pl.rad * m2 * 0.35), pl.col);
+      const pr = Math.max(pl.a === AU ? 9 : 5, pl.rad * m2 * 0.35);
+      disc(ctx, x, y, pr, pl.col);
     }
 
     disc(ctx, 0, 0, Math.max(3, 6.37e6 * m2 * 1.4), "#7ec8f0");
@@ -267,16 +268,36 @@
     const earth = keplerPos(AU, 0.017, YEAR, t, 0);
     const sunX = -earth.x * m2;
     const sunY = -earth.y * m2;
-    glow(ctx, sunX, sunY, Math.max(18, 6.96e8 * m2 * 8), "rgba(255,160,40,0.2)");
-    disc(ctx, sunX, sunY, Math.max(6, 6.96e8 * m2), "#ffcc66");
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    glow(ctx, sunX, sunY, Math.max(28, 6.96e8 * m2 * 10), "rgba(255,160,40,0.28)");
+    disc(ctx, sunX, sunY, Math.max(14, 6.96e8 * m2), "#ffcc66");
+    ctx.strokeStyle = "rgba(255,255,255,0.16)";
     ctx.beginPath();
     ctx.ellipse(sunX, sunY, AU * m2, AU * m2 * 0.985, 0, 0, Math.PI * 2);
     ctx.stroke();
-    disc(ctx, 0, 0, Math.max(5, 6.37e6 * m2), "#6eb7ea");
+    disc(ctx, 0, 0, Math.max(10, 6.37e6 * m2 * 8), "#6eb7ea");
     const moon = motion(DAY * 27.3, t, env.rate);
     const md = 3.84e8 * m2;
     disc(ctx, Math.cos(moon.phase * 6.283) * md, Math.sin(moon.phase * 6.283) * md, Math.max(2, 1.7e6 * m2), "#cfc8bb");
+  }
+
+  function drawEarthSpace(ctx, R, t, env) {
+    fillBg(ctx, R, "#070814", "#020208");
+    const sun = keplerPos(AU, 0.017, YEAR, t, 0);
+    const m2 = (R * 2) / 4.5e10;
+    const sunX = -sun.x * m2;
+    const sunY = -sun.y * m2;
+    glow(ctx, sunX, sunY, Math.max(40, R * 0.35), "rgba(255,170,60,0.2)", "rgba(255,220,120,0.45)");
+    disc(ctx, sunX, sunY, Math.max(8, R * 0.04), "#ffd078");
+    drawEarth(ctx, Math.max(12, R * 0.16), t, env);
+    const moon = motion(DAY * 27.3, t, env.rate);
+    const md = Math.min(R * 0.55, 3.84e8 * m2 * 8);
+    disc(
+      ctx,
+      Math.cos(moon.phase * 6.283) * md,
+      Math.sin(moon.phase * 6.283) * md,
+      Math.max(3, R * 0.03),
+      "#cfc8bb"
+    );
   }
 
   function drawEarthMoon(ctx, R, t, env) {
@@ -287,6 +308,7 @@
     ctx.beginPath();
     ctx.ellipse(0, 0, R * 0.72, R * 0.7, 0.15, 0, Math.PI * 2);
     ctx.stroke();
+    drawEarth(ctx, Math.max(10, R * 0.2), t, env);
     const mx = Math.cos(a) * R * 0.72;
     const my = Math.sin(a) * R * 0.7;
     glow(ctx, mx, my, R * 0.08, "rgba(200,200,220,0.15)");
@@ -479,55 +501,70 @@
   function drawHuman(ctx, R, t, env) {
     const breath = motion(4.2, t, env.rate);
     const pulse = motion(0.85, t, env.rate);
-    const chest = 1 + 0.035 * Math.sin(breath.phase * Math.PI * 2) * (breath.amount || (breath.frozen ? 0 : 1));
-    const sway = 0.03 * Math.sin(env.wall * 0.7);
+    const chest = 1 + 0.04 * Math.sin(breath.phase * Math.PI * 2) * (breath.amount || (breath.frozen ? 0 : 1));
+    const sway = 0.025 * Math.sin(env.wall * 0.7);
 
     ctx.save();
     ctx.rotate(sway);
-    ctx.scale(1, 1);
 
-    const skin = "#e2b089";
-    const cloth = "#2c4c7c";
-    const h = R * 1.85;
-    const w = h * 0.2;
+    const skin = "#e4b48c";
+    const cloth = "#2a4a78";
+    const pants = "#2b3038";
+    const h = R * 1.72;
+    const w = h * 0.22;
 
-    ctx.strokeStyle = skin;
     ctx.lineCap = "round";
-    ctx.lineWidth = w * 0.18;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = skin;
+    ctx.lineWidth = w * 0.22;
     ctx.beginPath();
-    ctx.moveTo(-w * 0.55, -h * 0.05);
-    ctx.lineTo(-w * 0.95, h * 0.22);
-    ctx.moveTo(w * 0.55, -h * 0.05);
-    ctx.lineTo(w * 1.05, h * 0.2);
+    ctx.moveTo(-w * 0.42, -h * 0.08);
+    ctx.lineTo(-w * 0.85, h * 0.18);
+    ctx.moveTo(w * 0.42, -h * 0.08);
+    ctx.lineTo(w * 0.82, h * 0.16);
     ctx.stroke();
+
+    ctx.strokeStyle = pants;
+    ctx.lineWidth = w * 0.28;
     ctx.beginPath();
-    ctx.moveTo(-w * 0.22, h * 0.22);
-    ctx.lineTo(-w * 0.28, h * 0.72);
-    ctx.moveTo(w * 0.22, h * 0.22);
-    ctx.lineTo(w * 0.3, h * 0.72);
+    ctx.moveTo(-w * 0.18, h * 0.18);
+    ctx.lineTo(-w * 0.22, h * 0.62);
+    ctx.moveTo(w * 0.18, h * 0.18);
+    ctx.lineTo(w * 0.24, h * 0.62);
     ctx.stroke();
+
+    ctx.fillStyle = "#3a2a22";
+    ctx.beginPath();
+    ctx.ellipse(-w * 0.22, h * 0.72, w * 0.18, w * 0.08, 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(w * 0.24, h * 0.72, w * 0.18, w * 0.08, -0.1, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.fillStyle = cloth;
     ctx.beginPath();
-    ctx.ellipse(0, 0, w * 0.55 * chest, h * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0.02 * h, w * 0.5 * chest, h * 0.2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    disc(ctx, 0, -h * 0.38, w * 0.32, skin);
+    disc(ctx, 0, -h * 0.36, w * 0.3, skin);
     ctx.fillStyle = "#3a2a22";
     ctx.beginPath();
-    ctx.ellipse(0, -h * 0.44, w * 0.34, w * 0.28, 0, Math.PI, Math.PI * 2);
+    ctx.ellipse(0, -h * 0.42, w * 0.32, w * 0.26, 0, Math.PI * 1.05, Math.PI * 1.95);
+    ctx.fill();
+
+    ctx.fillStyle = "#2a2018";
+    ctx.beginPath();
+    ctx.arc(-w * 0.1, -h * 0.36, w * 0.045, 0, Math.PI * 2);
+    ctx.arc(w * 0.1, -h * 0.36, w * 0.045, 0, Math.PI * 2);
     ctx.fill();
 
     const beat = 0.5 + 0.5 * Math.sin(pulse.phase * Math.PI * 2);
-    ctx.fillStyle = "rgba(200, 40, 60," + (0.25 + beat * 0.45) + ")";
+    ctx.fillStyle = "rgba(200, 40, 60," + (0.28 + beat * 0.5) + ")";
     ctx.beginPath();
-    ctx.arc(-w * 0.12, -h * 0.04, w * 0.12 * (0.9 + beat * 0.2), 0, Math.PI * 2);
+    ctx.arc(-w * 0.1, -h * 0.02, w * 0.11 * (0.9 + beat * 0.18), 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
-    ctx.fillStyle = "#3a2a22";
-    ctx.fillRect(-w * 0.35, h * 0.7, w * 0.28, w * 0.12);
-    ctx.fillRect(w * 0.08, h * 0.7, w * 0.28, w * 0.12);
   }
 
   function drawSkin(ctx, R, t, env) {
@@ -686,7 +723,7 @@
       ctx.stroke();
     }
     for (const a of atoms) {
-      glow(ctx, a.x * R + j * (a.x === 0 ? 1 : 0.3), a.y * R, a.r * R * 1.8, a.c + "33");
+      glow(ctx, a.x * R + j * (a.x === 0 ? 1 : 0.3), a.y * R, a.r * R * 1.8, withAlpha(a.c, 0.2));
       disc(ctx, a.x * R + j * (a.x === 0 ? 1 : 0.3), a.y * R, a.r * R, a.c);
     }
   }
@@ -782,7 +819,7 @@
         Math.sin(a2) * d2
       );
       ctx.stroke();
-      glow(ctx, x, y, R * 0.28, quarks[i].c + "55");
+      glow(ctx, x, y, R * 0.28, withAlpha(quarks[i].c, 0.35));
       disc(ctx, x, y, R * 0.16, quarks[i].c);
     }
   }
@@ -803,7 +840,7 @@
         const wiggle = Math.sin(u * 12 + m.phase * 20) * R * 0.04;
         disc(ctx, sx + wiggle, sy, R * 0.03, "rgba(255,220,80,0.35)");
       }
-      glow(ctx, x, y, R * 0.4, cols[i] + "66");
+      glow(ctx, x, y, R * 0.4, withAlpha(cols[i], 0.4));
       disc(ctx, x, y, R * 0.2, cols[i]);
     }
     ctx.strokeStyle = "rgba(255,255,255,0.08)";
@@ -1191,6 +1228,15 @@
       draw: drawEarthMoon,
       children: [earth],
     });
+    const earthSpace = node({
+      id: "earth-space",
+      name: "Околоземное пространство",
+      desc: "Земля, Луна и далёкое Солнце",
+      size: 4.2e10,
+      interior: "#070814",
+      draw: drawEarthSpace,
+      children: [earthMoon],
+    });
     const inner = node({
       id: "inner-system",
       name: "Внутренняя система",
@@ -1198,7 +1244,7 @@
       size: 3.2e11,
       interior: "#0b0c14",
       draw: drawInnerSystem,
-      children: [earthMoon],
+      children: [earthSpace],
     });
     const solar = node({
       id: "solar",
