@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Масштаб — от кварков до Вселенной</title>
+    <meta
+      name="description"
+      content="Интерактивный плавный зум от субатомного мира до наблюдаемой Вселенной."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%07070c'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%23e8c547' stroke-width='2'/%3E%3Ccircle cx='32' cy='32' r='8' fill='%23e8c547'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <canvas id="viewport" aria-label="Интерактивная шкала масштабов"></canvas>
+
+    <div id="vignette"></div>
+
+    <header class="hud hud-top">
+      <div class="brand">
+        <span class="brand-mark"></span>
+        <span class="brand-title">SCALE</span>
+      </div>
+      <div class="readout">
+        <p id="object-name">Человек</p>
+        <p id="object-desc">Стоящий человек, дыхание и пульс</p>
+      </div>
+      <div class="time-box" title="Одна скорость времени для всех слоёв">
+        <span class="time-label">время</span>
+        <span id="time-rate">1 с = 1 с</span>
+      </div>
+    </header>
+
+    <aside class="legend" id="legend" aria-hidden="true"></aside>
+
+    <footer class="hud hud-bottom">
+      <div class="scale-meta">
+        <span id="size-value">1.7 м</span>
+        <span id="size-exp">10<sup>0</sup> м</span>
+      </div>
+
+      <div class="slider-wrap">
+        <input
+          id="scale-slider"
+          type="range"
+          min="0"
+          max="1000"
+          value="500"
+          step="0.1"
+          aria-label="Масштаб, логарифмическая шкала"
+        />
+        <div class="ticks" id="ticks"></div>
+      </div>
+
+      <div class="controls">
+        <button type="button" id="btn-minus" title="Отдалить">−</button>
+        <button type="button" id="btn-plus" title="Приблизить">+</button>
+        <button type="button" id="btn-pause" title="Пауза">II</button>
+        <button type="button" id="btn-tour" title="Автотур">тур</button>
+        <button type="button" id="btn-human" title="К человеческому масштабу">1 м</button>
+      </div>
+    </footer>
+
+    <p class="hint" id="hint">Колёсико мыши, слайдер или клавиши <kbd>+</kbd> <kbd>−</kbd> · пробел — пауза · T — тур</p>
+
+    <script src="js/util.js"></script>
+    <script src="js/scene.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>
