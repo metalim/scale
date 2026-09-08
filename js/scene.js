@@ -82,6 +82,7 @@
   }));
 
   function fillBg(ctx, R, c0, c1) {
+    if (R < 160) return;
     const g = ctx.createRadialGradient(0, 0, R * 0.1, 0, 0, R * 1.2);
     g.addColorStop(0, c0);
     g.addColorStop(1, c1);

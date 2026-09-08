@@ -197,7 +197,15 @@
     const parentFade = 1 - smoothstep(Math.min(W, H) * 0.1, Math.min(W, H) * 0.42, maxChildR);
     const a = fade * parentFade;
 
-    if (a > 0.02 && typeof node.draw === "function") {
+    if (radiusPx < 88) {
+      if (radiusPx > 2.5 && a > 0.02) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.globalAlpha = a * Math.min(1, radiusPx / 14);
+        disc(ctx, 0, 0, radiusPx, node.interior || "#dde");
+        ctx.restore();
+      }
+    } else if (a > 0.02 && typeof node.draw === "function") {
       ctx.save();
       ctx.translate(cx, cy);
       ctx.globalAlpha = a;
