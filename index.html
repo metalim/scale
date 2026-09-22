@@ -1,0 +1,1845 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="color-scheme" content="dark">
+<title>Масштаб · от кварка до наблюдаемой Вселенной</title>
+<style>
+  :root{
+    --ink:#e9eef7; --dim:rgba(233,238,247,.60); --dim2:rgba(233,238,247,.38);
+    --accent:#8fd3ff; --stroke:rgba(233,238,247,.16);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:#05070c;color:var(--ink);overflow:hidden;
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  #scene{position:fixed;inset:0;display:block;touch-action:none;cursor:grab}
+  #scene.drag{cursor:grabbing}
+  .hud{position:fixed;inset:0;pointer-events:none;z-index:3;animation:hudIn .8s .1s both}
+  @keyframes hudIn{from{opacity:0}to{opacity:1}}
+  .hud:before{content:"";position:absolute;inset:0;
+    background:radial-gradient(125% 95% at 50% 48%,transparent 38%,rgba(0,0,0,.42) 100%)}
+
+  #title{position:absolute;left:clamp(16px,2.2vw,34px);top:clamp(16px,2.2vh,26px);
+    max-width:min(46vw,520px);text-shadow:0 1px 18px rgba(0,0,0,.8),0 0 3px rgba(0,0,0,.6)}
+  #lExp{font:600 12.5px/1 var(--mono);color:var(--accent);letter-spacing:.04em;opacity:.92}
+  #lName{font-size:clamp(23px,3.1vw,37px);line-height:1.08;margin:7px 0 6px;
+    font-weight:600;letter-spacing:-.017em}
+  #lSize{display:inline-block;font:500 12px/1 var(--mono);color:var(--ink);
+    padding:4px 9px;border:1px solid var(--stroke);border-radius:999px;
+    background:rgba(255,255,255,.05)}
+  #lNote{font-size:13.5px;line-height:1.45;color:var(--dim);margin:8px 0 0}
+  #title.flash{animation:tflash .55s ease-out}
+  @keyframes tflash{from{opacity:.2;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  #panel{position:absolute;right:clamp(16px,2.2vw,34px);top:clamp(16px,2.2vh,26px);
+    text-align:right;text-shadow:0 1px 16px rgba(0,0,0,.85)}
+  #panel .k{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--dim2);margin:0 0 3px}
+  #panel .v{font:500 15px/1.25 var(--mono);margin:0 0 12px}
+  #ratebar{width:118px;height:4px;margin:0 0 0 auto;border-radius:2px;background:rgba(255,255,255,.11);overflow:hidden}
+  #ratebar i{display:block;height:100%;width:50%;border-radius:2px;
+    background:linear-gradient(90deg,#5ad1ff,#b48cff)}
+
+  #rail{position:absolute;right:6px;top:calc(50% + 12px);transform:translateY(-50%);
+    width:206px;max-height:min(66vh,620px);overflow-y:auto;pointer-events:auto;
+    padding:2px 0;scrollbar-width:none;
+    -webkit-mask-image:linear-gradient(180deg,transparent,#000 7%,#000 93%,transparent);
+    mask-image:linear-gradient(180deg,transparent,#000 7%,#000 93%,transparent)}
+  #rail::-webkit-scrollbar{width:0;height:0}
+  .ri{display:flex;align-items:center;gap:9px;justify-content:flex-end;
+    padding:2.5px 9px;border-radius:7px;cursor:pointer;color:var(--dim2);
+    font-size:11.5px;line-height:1.2;transition:color .16s,background .16s;
+    white-space:nowrap;text-shadow:0 1px 10px rgba(0,0,0,.75)}
+  .ri .n{overflow:hidden;text-overflow:ellipsis}
+  .ri .e{font:500 9.5px var(--mono);opacity:.62;min-width:32px;text-align:right}
+  .ri:hover{color:var(--ink);background:rgba(255,255,255,.07)}
+  .ri.on{color:#fff;background:linear-gradient(90deg,rgba(143,211,255,0),rgba(143,211,255,.13))}
+  .ri.on .n{font-weight:600}
+  .ri.on .e{opacity:1;color:var(--accent)}
+
+  #bar{position:absolute;left:0;right:0;bottom:0;padding:0 18px 15px;
+    display:flex;flex-direction:column;align-items:center;gap:9px}
+  #hint{font-size:11.5px;color:var(--dim2);text-align:center;
+    text-shadow:0 1px 12px rgba(0,0,0,.85)}
+  #btns{display:flex;gap:8px;pointer-events:auto;flex-wrap:wrap;justify-content:center}
+  button{font:500 12px/1 inherit;color:var(--ink);padding:8px 13px;cursor:pointer;
+    background:rgba(255,255,255,.055);border:1px solid var(--stroke);border-radius:999px;
+    backdrop-filter:blur(7px);transition:.16s}
+  button:hover{background:rgba(255,255,255,.13);border-color:rgba(255,255,255,.3)}
+  button.on{background:rgba(143,211,255,.19);border-color:rgba(143,211,255,.55);color:#fff}
+
+  #prog{position:fixed;left:0;top:0;height:2px;width:100%;background:rgba(255,255,255,.07);z-index:4}
+  #prog i{display:block;height:100%;width:0;
+    background:linear-gradient(90deg,rgba(150,120,255,.9),rgba(143,211,255,.9),rgba(255,190,120,.9))}
+
+  @media (max-width:860px){ #rail{display:none} #title{max-width:72vw} }
+  @media (max-width:520px){ #lNote{display:none} }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div class="hud" id="hud">
+  <div id="title">
+    <div id="lExp">10⁰ м</div>
+    <h1 id="lName">Человек</h1>
+    <div><span id="lSize">1,75 м</span></div>
+    <p id="lNote"></p>
+  </div>
+
+  <div id="panel">
+    <p class="k">в кадре по вертикали</p>
+    <p class="v" id="vFrame">—</p>
+    <p class="k">темп времени</p>
+    <p class="v" id="vRate" title="Единые часы для всех уровней: темп = 10^(0,05 · масштаб), ограничен 0,08…10. Зависит только от текущего зума.">×1,00</p>
+    <div id="ratebar"><i id="ratebarI"></i></div>
+  </div>
+
+  <nav id="rail"></nav>
+
+  <div id="bar">
+    <div id="hint">колесо — зум · перетаскивание — сдвиг · ← → — уровни · пробел — автозум</div>
+    <div id="btns">
+      <button id="bAuto">Автозум</button>
+      <button id="bHome">Человек</button>
+      <button id="bTop">Горизонт Вселенной</button>
+    </div>
+  </div>
+</div>
+<div id="prog"><i id="progI"></i></div>
+
+<script>
+(() => {
+'use strict';
+/* ============================================================================
+   МАСШТАБ — один физический лог-зум от кварка до наблюдаемой Вселенной.
+
+   Мир один: все объекты стоят в начале координат в метрах, у каждого уровня
+   своя характерная величина (LEVELS[].e = log10 метров).
+   Камера: cam.z = log10(метров в высоте кадра) — то есть кадр всегда
+   охватывает 10^cam.z метров по вертикали. Отсюда физичность: масштаб
+   объекта на экране = 10^(e - cam.z).
+   Время одно на всю сцену: simT растёт со скоростью rate(cam.z) —
+   функция только текущего зума.
+   ========================================================================== */
+
+/* ------------------------------ утилиты ---------------------------------- */
+const TAU = Math.PI*2;
+const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+const lerp  = (a,b,u) => a+(b-a)*u;
+const sstep = u => { u = clamp(u,0,1); return u*u*(3-2*u); };
+function mkRnd(seed){ let a = seed|0; return function(){ a = a+0x6D2B79F5|0;
+  let t = Math.imul(a^a>>>15, 1|a); t = t+Math.imul(t^t>>>7, 61|t)^t;
+  return ((t^t>>>14)>>>0)/4294967296; }; }
+function rgba(col,a){
+  if(col.charAt(0) !== '#') return col;
+  let h = col.slice(1);
+  if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  const n = parseInt(h,16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+}
+const SUP = {'-':'⁻','+':'','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','.':'·',',':','};
+const sup = s => String(s).split('').map(ch => SUP[ch] !== undefined ? SUP[ch] : ch).join('');
+function num(x,d){ if(!isFinite(x)) return '—';
+  const a = Math.abs(x);
+  let s = d !== undefined ? x.toFixed(d) : (a>=100?x.toFixed(0):a>=10?x.toFixed(1):a>=1?x.toFixed(2):x.toPrecision(2));
+  return s.replace('.',',');
+}
+const LY = 9.4607e15, AU = 1.495978707e11;
+const UNITS = [[LY*1e9,'млрд св. лет'],[LY*1e6,'млн св. лет'],[LY*1e3,'тыс. св. лет'],[LY,'св. лет'],
+  [AU*1e3,'млрд км'],[AU,'а.е.'],[1e11,'млн км'],[1e8,'тыс. км'],[1e3,'км'],[1,'м'],
+  [1e-2,'см'],[1e-3,'мм'],[1e-6,'мкм'],[1e-9,'нм'],[1e-12,'пм'],[1e-15,'фм'],[1e-18,'ам']];
+function friendly(m){ if(!(m>0) || !isFinite(m)) return '—';
+  for(const u of UNITS) if(m >= u[0]) return num(m/u[0])+' '+u[1];
+  return num(m*1e18,0)+' ам'; }
+
+/* --------------------- векторные примитивы (в единицах уровня) ----------- */
+let CURS = 1;                                // пикселей на каноническую единицу
+const INK = '#0a0e17';
+function lw(c,p){ c.lineWidth = Math.max(p/CURS, 1e-7); }
+function poly(c,pts,open){ c.beginPath();
+  for(let i=0;i<pts.length;i++){ const p = pts[i]; i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]); }
+  if(!open) c.closePath(); }
+function smoothPath(c,pts){ const n = pts.length; c.beginPath();
+  for(let i=0;i<n;i++){ const p0 = pts[(i-1+n)%n], p1 = pts[i], p2 = pts[(i+1)%n];
+    const ax = (p0[0]+p1[0])/2, ay = (p0[1]+p1[1])/2, bx = (p1[0]+p2[0])/2, by = (p1[1]+p2[1])/2;
+    if(i===0) c.moveTo(ax,ay);
+    c.quadraticCurveTo(p1[0],p1[1],bx,by); }
+  c.closePath(); }
+function capsulePath(c,x0,x1,y,r){ c.beginPath(); c.moveTo(x1,y-r);
+  c.arc(x1,y,r,-Math.PI/2,Math.PI/2); c.lineTo(x0,y+r); c.arc(x0,y,r,Math.PI/2,Math.PI*1.5); c.closePath(); }
+function rrectPath(c,w,h,r0){ const r = Math.min(r0,w/2,h/2), x = w/2, y = h/2;
+  c.beginPath(); c.moveTo(-x+r,-y); c.lineTo(x-r,-y); c.arcTo(x,-y,x,y,r);
+  c.lineTo(x,y-r); c.arcTo(x,y,x-r,y,r); c.lineTo(-x+r,y); c.arcTo(-x,y,-x,y-r,r);
+  c.lineTo(-x,-y+r); c.arcTo(-x,-y,-x+r,-y,r); c.closePath(); }
+function starPath(c,x,y,R,n,rot,inner){ c.beginPath();
+  for(let i=0;i<n*2;i++){ const a = rot + i*Math.PI/n, r = (i%2) ? R*inner : R;
+    const px = x+Math.cos(a)*r, py = y+Math.sin(a)*r; i?c.lineTo(px,py):c.moveTo(px,py); }
+  c.closePath(); }
+function fill(c,col){ c.fillStyle = col; c.fill(); }
+function strk(c,col,p){ c.strokeStyle = col; lw(c,p); c.stroke(); }
+function strkC(c,col,w){ c.strokeStyle = col; c.lineWidth = Math.max(w,1e-9); c.stroke(); }
+function disc(c,x,y,r,f,s,p){ c.beginPath(); c.arc(x,y,r,0,TAU);
+  if(f){ c.fillStyle = f; c.fill(); } if(s){ c.strokeStyle = s; lw(c,p||1.6); c.stroke(); } }
+function ring(c,x,y,r,s,p){ c.beginPath(); c.arc(x,y,r,0,TAU); strk(c,s,p); }
+function line(c,x1,y1,x2,y2,s,p){ c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); strk(c,s,p); }
+function lineC(c,x1,y1,x2,y2,s,w){ c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); strkC(c,s,w); }
+function arcS(c,x,y,r,a0,a1,s,p){ c.beginPath(); c.arc(x,y,r,a0,a1); strk(c,s,p); }
+/* толщина w — в канонических единицах уровня, обводка s — в экранных пикселях */
+function pill(c,x1,y1,x2,y2,w,f,s,ink){ c.lineCap = 'round'; c.lineJoin = 'round';
+  if(s) lineC(c,x1,y1,x2,y2,ink||INK,w+s*2/CURS); lineC(c,x1,y1,x2,y2,f,w); c.lineCap = 'butt'; }
+function glow(c,x,y,r,col,a0,a1){ const g = c.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0, rgba(col, a0 === undefined ? .5 : a0));
+  g.addColorStop(1, rgba(col, a1 === undefined ? 0 : a1));
+  c.fillStyle = g; c.beginPath(); c.arc(x,y,r,0,TAU); c.fill(); }
+function glowR(c,x,y,r0,r1,col,a0,a1){ const g = c.createRadialGradient(x,y,r0,x,y,r1);
+  g.addColorStop(0, rgba(col,a0)); g.addColorStop(1, rgba(col,a1));
+  c.fillStyle = g; c.beginPath(); c.arc(x,y,r1,0,TAU); c.fill(); }
+/* размер px — в канонических единицах уровня (подпись часть рисунка),
+   но слишком мелкое на экране не рисуем */
+const fontOf = (px,weight) => (weight||600)+' '+px+'px ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif';
+function txt(c,x,y,s,px,col,align,weight){
+  if(!(px > 1e-6) || px*CURS < 3.5) return;
+  c.font = fontOf(px,weight);
+  c.textAlign = align||'center'; c.textBaseline = 'middle'; c.fillStyle = col; c.fillText(s,x,y); }
+function txtH(c,x,y,s,px,col,align,weight,halo){
+  if(!(px > 1e-6) || px*CURS < 3.5) return;
+  c.font = fontOf(px,weight);
+  c.textAlign = align||'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+  c.strokeStyle = halo||'rgba(3,5,10,.85)'; c.lineWidth = Math.max(2.6/CURS,1e-7);
+  c.strokeText(s,x,y); c.fillStyle = col; c.fillText(s,x,y); }
+function spring(c,ax,ay,bx,by,amp,seg,ph,col,p){
+  const dx = bx-ax, dy = by-ay, L = Math.hypot(dx,dy)||1e-6, nx = -dy/L, ny = dx/L, pts = [];
+  for(let i=0;i<=seg;i++){ const q = i/seg;
+    const o = (i%2?1:-1)*amp*Math.sin(q*Math.PI)*Math.cos(ph*3+q*4);
+    pts.push([lerp(ax,bx,q)+nx*o, lerp(ay,by,q)+ny*o]); }
+  poly(c,pts,true); strk(c,col,p); }
+function randPoly(rnd,n,R,irr,cx,cy,ry){ const pts = [];
+  for(let i=0;i<n;i++){ const a = i/n*TAU+(rnd()-.5)*.5, r = R*(1-irr*rnd());
+    pts.push([cx+Math.cos(a)*r, cy+Math.sin(a)*r*(ry||1)]); }
+  return pts; }
+/* облако: несколько наложенных эллипсов, а не круги */
+function cloud(c,x,y,s,col){
+  for(let i=0;i<4;i++){ const dx = (i-1.5)*s*.55, dy = (i%2?-1:1)*s*.10;
+    c.beginPath();
+    c.ellipse(x+dx, y+dy, s*((i===1||i===2)?1:.72), s*((i===1||i===2)?.34:.26), 0,0,TAU);
+    fill(c,col); }
+}
+/* маленькая спиральная галактика в локальных координатах */
+function galaxy(c,R,phase,hue){
+  glow(c,0,0,R*1.15,hue,.30,0);
+  const g2 = c.createRadialGradient(0,0,0,0,0,R);
+  g2.addColorStop(0, rgba(hue,.55)); g2.addColorStop(.42, rgba(hue,.18)); g2.addColorStop(1, rgba(hue,0));
+  c.beginPath(); c.arc(0,0,R,0,TAU); c.fillStyle = g2; c.fill();
+  for(let k=0;k<2;k++){
+    const pts = [];
+    for(let i=0;i<=40;i++){ const q = i/40, th = phase+k*Math.PI+q*2.6, rr = R*.10*Math.exp(th*.85);
+      if(rr > R*.98) break;
+      pts.push([Math.cos(th)*rr, Math.sin(th)*rr]); }
+    if(pts.length > 2){
+      poly(c,pts,true); strk(c, rgba('#cfe0ff',.30), R*.30);
+      poly(c,pts,true); strk(c, rgba('#ffffff',.45), R*.16); }
+  }
+  glow(c,0,0,R*.34,'#fff6e0',.8,0);
+  disc(c,0,0,R*.07,'#fffdf4');
+}
+/* точка на ломаной: q=0..1 по длине -> [x,y,угол] */
+function alongPath(pts,q){ const seg = []; let total = 0;
+  for(let i=0;i<pts.length-1;i++){ const d = Math.hypot(pts[i+1][0]-pts[i][0], pts[i+1][1]-pts[i][1]);
+    seg.push(d); total += d; }
+  let want = q*total;
+  for(let i=0;i<seg.length;i++){
+    if(want <= seg[i] || i === seg.length-1){ const u = clamp(want/(seg[i]||1),0,1), a = pts[i], b = pts[i+1];
+      return [lerp(a[0],b[0],u), lerp(a[1],b[1],u), Math.atan2(b[1]-a[1], b[0]-a[0])]; }
+    want -= seg[i]; }
+  return [pts[0][0], pts[0][1], 0];
+}
+function mkTex(size,fn){ const cv = document.createElement('canvas');
+  cv.width = cv.height = size; fn(cv.getContext('2d'), size); return cv; }
+function sparkle(c,x,y,r,col,a,long){ glow(c,x,y,r*(long?4.6:2.8),col,(a||.5)*.6,0);
+  const L = r*(long?4.6:2.4), W = r*(long?.34:.28);
+  c.save(); c.translate(x,y);
+  for(let k=0;k<2;k++){ c.beginPath(); c.moveTo(0,-L);
+    c.quadraticCurveTo(W,0,0,L); c.quadraticCurveTo(-W,0,0,-L);
+    fill(c, rgba(col,(a||.5)*.85)); c.rotate(Math.PI/2); }
+  c.restore(); disc(c,x,y,r*.6,'#fff'); }
+
+/* =============================== УРОВНИ ================================== */
+const LEVELS = [
+
+/* ------------------------------------------------------------- КВАРК ---- */
+{ e:-17.5, name:'Кварк и глюоны', size:'< 10⁻¹⁸ м', span:.92,
+  note:'Внутри нуклона: три кварка, связанные глюонными «пружинами». Свободных кварков в природе не существует — только в связке.',
+  init(L){ const r = mkRnd(11);
+    L.q = [0,1,2].map(i => ({ a:i*TAU/3, ph:r()*TAU, key:['R','G','B'][i],
+      col:['#ff6b6b','#5ef0a0','#7d8bff'][i] }));
+    L.foam = []; for(let i=0;i<16;i++) L.foam.push({a:r()*TAU, d:.72+r()*.32, r:.006+r()*.018, ph:r()*TAU}); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    glow(c,0,0,1.06,'#7b5cff',.30,0);
+    glowR(c,0,0,.7,1.04,'#a78bfa',.15,0);
+    ring(c,0,0,.99,'rgba(167,139,250,.42)',1.5);
+    ring(c,0,0,.93,'rgba(167,139,250,.13)',5);
+    const P = L.q.map(q => { const a = q.a+.30*Math.sin(t*.9+q.ph), d = .40+.06*Math.sin(t*1.5+q.ph*2);
+      return [Math.cos(a)*d, Math.sin(a)*d]; });
+    for(let i=0;i<3;i++) spring(c,P[i][0],P[i][1],P[(i+1)%3][0],P[(i+1)%3][1],.055,9,t*1.6+i,'rgba(214,192,255,.9)',2.6);
+    L.q.forEach((q,i) => { const x = P[i][0], y = P[i][1];
+      glow(c,x,y,.34,q.col,.42,0);
+      disc(c,x,y,.215,q.col,INK,2.2);
+      disc(c,x-.07,y-.08,.062,'rgba(255,255,255,.85)');
+      txtH(c,x,y+.002,q.key,.17,'rgba(10,14,23,.9)','center',700); });
+    for(const s of L.foam) disc(c,Math.cos(s.a)*s.d, Math.sin(s.a)*s.d,
+      s.r*(1+.4*Math.sin(t*2+s.ph)), rgba('#d8c9ff', .12+.22*Math.max(0,Math.sin(t*1.5+s.ph)))); } },
+
+/* ------------------------------------------------------------ ПРОТОН ---- */
+{ e:-15, name:'Протон', size:'0,84·10⁻¹⁵ м', span:1,
+  note:'Три кварка и глюонное поле, удерживающее их вместе. Ядро в 100 000 раз меньше атома, но в нём почти вся его масса.',
+  init(L){ const r = mkRnd(12);
+    L.q = [0,1,2].map(i => ({ a:i*TAU/3+.4, ph:r()*TAU, key:['u','u','d'][i],
+      col:['#ff7a5c','#ffd166','#7fb2ff'][i] })); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    const R = 1 + .012*Math.sin(t*1.2);
+    glow(c,0,0,1.5,'#ff9b5c',.28,0);
+    c.beginPath(); c.arc(0,0,R,0,TAU);
+    c.fillStyle = (() => { const gr = c.createRadialGradient(0,0,0,0,0,R);
+      gr.addColorStop(0,'rgba(255,140,90,.34)'); gr.addColorStop(.55,'rgba(255,190,120,.15)');
+      gr.addColorStop(1,'rgba(255,220,180,.03)'); return gr; })();
+    c.fill();
+    ring(c,0,0,R,'rgba(255,214,170,.62)',2);
+    ring(c,0,0,R*1.06,'rgba(255,180,120,.16)',6);
+    const P = L.q.map(q => { const a = q.a+t*.42, d = .42+.05*Math.sin(t*1.4+q.ph);
+      return [Math.cos(a)*d, Math.sin(a)*d]; });
+    for(let i=0;i<3;i++) spring(c,P[i][0],P[i][1],P[(i+1)%3][0],P[(i+1)%3][1],.06,9,t*1.7+i,'rgba(255,228,186,.8)',1.8);
+    L.q.forEach((q,i) => { const x = P[i][0], y = P[i][1];
+      glow(c,x,y,.3,q.col,.5,0); disc(c,x,y,.2,q.col,INK,2.1);
+      disc(c,x-.06,y-.07,.058,'rgba(255,255,255,.85)');
+      txtH(c,x,y+.004,q.key,.19,INK,'center',700); });
+    disc(c,.74,-.74,.17,'rgba(255,255,255,.10)','rgba(255,255,255,.45)',1.5);
+    txt(c,.74,-.75,'+',.27,'#fff','center',700);
+    txt(c,0,-1.24,'протон',.07,'rgba(255,225,200,.55)','center',500); } },
+
+/* ------------------------------------------------------- АТОМНОЕ ЯДРО --- */
+{ e:-14, name:'Атомное ядро', size:'≈10⁻¹⁴ м', span:1,
+  note:'Ядро свинца: 82 протона и 126 нейтронов. Плотность ядерного вещества — 200 млн тонн в кубическом сантиметре.',
+  init(L){ const r = mkRnd(21); const pts = [[0,0]];
+    for(let ring=1; ring<=2; ring++){ const n = 6*ring;
+      for(let i=0;i<n;i++){ const a = i/n*TAU+ring*.32;
+        pts.push([Math.cos(a)*ring*.40, Math.sin(a)*ring*.40]); } }
+    L.n = pts.map((p,i) => ({ x:p[0], y:p[1], p:i%2===0, ph:r()*TAU, rr:.185 })); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    glow(c,0,0,1.12,'#ff7a4d',.28,0);
+    c.save(); c.rotate(t*.05);
+    for(const n of L.n){
+      const x = n.x+.024*Math.sin(t*1.7+n.ph), y = n.y+.024*Math.cos(t*1.4+n.ph*1.3);
+      const col = n.p ? '#ff7a5c' : '#8ab4f8';
+      disc(c,x,y,n.rr,col,'rgba(10,14,23,.9)',1.7);
+      disc(c,x-n.rr*.32,y-n.rr*.34,n.rr*.30,'rgba(255,255,255,.35)');
+      if(n.p) txtH(c,x,y+.004,n.rr*1.05,'+','rgba(25,8,4,.92)','center',700); }
+    c.restore();
+    ring(c,0,0,1.04,'rgba(255,170,140,.22)',1.3); } },
+
+/* ------------------------------------------------------- K-ОБОЛОЧКА ----- */
+{ e:-12, name:'Электрон K-оболочки', size:'≈10⁻¹² м', span:.94,
+  note:'Самый внутренний слой электронного облака тяжёлого атома. Электрон здесь — не шарик, а размазанная по оболочке волна.',
+  init(L){ const r = mkRnd(31);
+    L.el = [{ a:0, per:1.15, col:'#7fe3ff' }, { a:Math.PI, per:1.15, col:'#9fd0ff' }];
+    L.wave = []; for(let i=0;i<44;i++) L.wave.push({ a:r()*TAU, d:.5+r()*.55, r:.02+r()*.05, ph:r()*TAU }); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    glow(c,0,0,1.2,'#5f8fe0',.20,0);
+    glowR(c,0,0,.42,.95,'#7fb6ff',.16,0);
+    glow(c,0,0,.3,'#ffb066',.55,0);
+    disc(c,0,0,.115,'#c8552f',INK,1.9);
+    disc(c,-.032,-.036,.034,'rgba(255,255,255,.5)');
+    ring(c,0,0,.62,'rgba(120,190,255,.20)',1.4);
+    for(const w of L.wave) disc(c,Math.cos(w.a)*w.d, Math.sin(w.a)*w.d, w.r,
+      rgba('#7fd0ff', .04+.07*Math.max(0,Math.sin(t*1.3+w.ph))));
+    for(const e of L.el){ const a = e.a+t*TAU/e.per, x = Math.cos(a)*.62, y = Math.sin(a)*.62;
+      for(let k=1;k<=5;k++) arcS(c,0,0,.62,a-k*.22,a-(k-1)*.22,rgba(e.col,.30*(1-k/6)),3.4*(1-k/7));
+      glow(c,x,y,.12,e.col,.55,0); disc(c,x,y,.038,e.col,'#fff',1.1); }
+    txtH(c,0,-1.02,'1s',.14,'rgba(180,215,255,.55)','center',500); } },
+
+/* --------------------------------------------------------------- АТОМ --- */
+{ e:-10, name:'Атом', size:'≈10⁻¹⁰ м', span:1,
+  note:'Ядро и электронные орбитали. Атом водорода — 0,1 нм, и он в 100 000 раз больше своего ядра.',
+  init(L){ const r = mkRnd(41);
+    L.orb = [{ tilt:0, sq:1, R:.44, n:2, col:'#7fe3ff', per:2.6 },
+             { tilt:Math.PI/3, sq:.34, R:.74, n:3, col:'#a99cff', per:3.6 },
+             { tilt:-Math.PI/3, sq:.34, R:.74, n:3, col:'#ffd48a', per:4.6 }];
+    L.haze = []; for(let i=0;i<26;i++) L.haze.push({ a:r()*TAU, d:.24+r()*.72, r:.05+r()*.11, ph:r()*TAU });
+    L.nuc = [[0,0],[.078,-.012],[-.072,.024],[.006,.08],[0,-.078],[.062,.064],[-.058,-.062]]; },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    glow(c,0,0,1.2,'#5b7fd8',.22,0);
+    for(const h of L.haze) glow(c,Math.cos(h.a)*h.d, Math.sin(h.a)*h.d, h.r,
+      '#8fc8ff', .05+.07*Math.max(0,Math.sin(t*1.1+h.ph)), 0);
+    glow(c,0,0,.34,'#ffb066',.6,0);
+    L.nuc.forEach((p,i) => disc(c,p[0],p[1],.046, i%2 ? '#ffd166' : '#ff8a5c', 'rgba(12,8,6,.9)', 1.3));
+    for(const o of L.orb){
+      c.save(); c.rotate(o.tilt); c.scale(1,o.sq);
+      ring(c,0,0,o.R,rgba(o.col,.34),1.7);
+      for(let i=0;i<o.n;i++){ const a = (i/o.n)*TAU+t*TAU/o.per,
+          x = Math.cos(a)*o.R, y = Math.sin(a)*o.R;
+        for(let k=1;k<=5;k++) arcS(c,0,0,o.R,a-k*.14,a-(k-1)*.14,rgba(o.col,.26*(1-k/6)),3.2*(1-k/7));
+        glow(c,x,y,.1,o.col,.5,0); disc(c,x,y,.034,o.col,'#fff',1.1); }
+      c.restore(); } } },
+
+/* ------------------------------------------------------ МОЛЕКУЛА ДНК ---- */
+{ e:-9, name:'Молекула ДНК', size:'2·10⁻⁹ м', span:1,
+  note:'Двойная спираль: два сахарофосфатных остова и перекладины из пар оснований. Шаг спирали — 3,4 нм, виток — 10 пар.',
+  init(L){ const r = mkRnd(51); const COLS = ['#ff8fa3','#ffd166','#8ad6ff','#a8e07a'];
+    L.rungs = []; for(let i=0;i<20;i++){ const y = -.95+i*(1.9/19);
+      L.rungs.push({ y, k:r()*.6+.2, c1:COLS[Math.floor(r()*4)], c2:COLS[Math.floor(r()*4)] }); } },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    const A = .85, K = 6.0, ph = t*1.1;
+    const halves = [];
+    for(const r2 of L.rungs){ const s = Math.sin(r2.y*K+ph), dz = Math.cos(r2.y*K+ph);
+      halves.push({ y:r2.y, x0:-s*A, x1:0, z:-dz, col:r2.c1, k:r2.k });
+      halves.push({ y:r2.y, x0:0, x1:s*A, z:dz, col:r2.c2, k:r2.k }); }
+    const back = halves.filter(h => h.z < 0).sort((a,b) => a.z-b.z);
+    const front = halves.filter(h => h.z >= 0).sort((a,b) => a.z-b.z);
+    const drawHalf = h => { const u = (h.z+1)/2, w = .022+.030*h.k;
+      lineC(c,h.x0,h.y,h.x1,h.y, 'rgba(10,14,23,.8)', w+.020);
+      lineC(c,h.x0,h.y,h.x1,h.y, rgba(h.col,.30+.65*u), w); };
+    for(const h of back) drawHalf(h);
+    for(const sgn of [-1,1]){ const pts = [];
+      for(let i=0;i<=72;i++){ const y = -1.04+i*(2.08/72); pts.push([sgn*Math.sin(y*K+ph)*A, y]); }
+      poly(c,pts,true); strkC(c,'rgba(14,20,32,.85)',.105);
+      poly(c,pts,true); strkC(c,'rgba(150,180,215,.95)',.072);
+      poly(c,pts,true); strkC(c,'rgba(222,240,255,.85)',.030); }
+    for(const h of front) drawHalf(h);
+    line(c,-A,-1.20,A,-1.20,'rgba(215,235,255,.45)',1.2);
+    line(c,-A,-1.24,-A,-1.16,'rgba(215,235,255,.45)',1.2);
+    line(c,A,-1.24,A,-1.16,'rgba(215,235,255,.45)',1.2);
+    txtH(c,0,-1.32,'⌀ 2 нм · виток 10 пар оснований',.075,'rgba(215,235,255,.75)','center',500); } },
+
+/* -------------------------------------------------------- БАКТЕРИОФАГ -- */
+{ e:-7, name:'Бактериофаг', size:'≈10⁻⁷ м', span:1,
+  note:'Вирус-хищник бактерий: головка с ДНК, хвост-шприц и шесть лапок-опор. Сто нанометров — предел светового микроскопа.',
+  init(L){ const r = mkRnd(61);
+    L.legs = []; for(let i=0;i<6;i++) L.legs.push({ a:(i/6)*TAU+.2, ph:r()*TAU, k:.85+r()*.3 }); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    const hy = -.46, hr = .40;
+    const leg = l => { const front = Math.sin(l.a) >= 0, ca = Math.cos(l.a);
+      const bend = .06*Math.sin(t*1.5+l.ph);
+      const kx = ca*.46, ky = .38+bend, fx = ca*(.60+l.k*.16), fy = .74+bend*1.5;
+      const col = front ? '#cfd9ea' : '#8d99ad', sp = front ? 1.9 : 1.4;
+      const seg = (x1,y1,x2,y2,w) => { if(sp>1.5) line(c,x1,y1,x2,y2,INK,w+sp);
+        line(c,x1,y1,x2,y2,col,w); };
+      seg(ca*.17,.30,kx,ky,3.4); seg(kx,ky,fx,fy,3); };
+    for(const l of L.legs) if(Math.sin(l.a) < 0) leg(l);
+    // хвост
+    const sh = .17, sy0 = -.08, sy1 = .30;
+    c.beginPath(); c.rect(-sh/2, sy0, sh, sy1-sy0);
+    fill(c,'#c6d2e6'); strk(c,INK,2);
+    for(let i=1;i<5;i++){ const y = sy0+i*(sy1-sy0)/5;
+      line(c,-sh/2,y,sh/2,y,'rgba(10,14,23,.42)',1.2); }
+    // воротничок и базальная пластина
+    c.beginPath(); c.rect(-.16,-.14,.32,.07); fill(c,'#98a5bb'); strk(c,INK,1.8);
+    c.beginPath(); c.moveTo(-.10,.30); c.lineTo(.10,.30); c.lineTo(.20,.40); c.lineTo(-.20,.40);
+    c.closePath(); fill(c,'#8b7cff'); strk(c,INK,2);
+    // головка-икосаэдр
+    c.save(); c.translate(0,hy);
+    const g6 = []; for(let i=0;i<6;i++){ const a = i*TAU/6+Math.PI/6; g6.push([Math.cos(a)*hr, Math.sin(a)*hr]); }
+    poly(c,g6); fill(c,'#4fd1c5'); strk(c,INK,2.4);
+    for(const p of g6){ poly(c,[[0,0],p,[0,-hr*1.0]]); strk(c,'rgba(10,14,23,.35)',1.2); }
+    poly(c,[g6[0],g6[1],g6[2]]); fill(c,'rgba(255,255,255,.22)');
+    c.beginPath(); c.arc(-hr*.34,-hr*.34,hr*.30,0,TAU); fill(c,'rgba(255,255,255,.30)');
+    c.restore();
+    for(const l of L.legs) if(Math.sin(l.a) >= 0) leg(l);
+    txtH(c,0,-1.28,'бактериофаг T4',.07,'rgba(210,230,240,.5)','center',500); } },
+
+/* ----------------------------------------------------------- БАКТЕРИЯ -- */
+{ e:-6, name:'Кишечная палочка', size:'2·10⁻⁶ м', span:.62,
+  note:'Одноклеточный организм: 2 микрона в длину. Жгутики вращаются как винты и толкают клетку вперёд.',
+  init(L){ const r = mkRnd(71);
+    L.rib = []; for(let i=0;i<40;i++) L.rib.push({ x:(r()*2-1)*.84, y:(r()*2-1)*.28, r:.02+r()*.018, ph:r()*TAU });
+    L.pili = []; for(let i=0;i<18;i++) L.pili.push({ x:(r()*2-1)*.9, s:r()<.5?-1:1, ph:r()*TAU });
+    L.fl = [0,1,2,3].map(i => ({ y:-.22+i*.15, ph:i*1.7, l:.7+i*.10 })); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    c.save(); c.rotate(.05+.02*Math.sin(t*1.1)); c.translate(0,.03*Math.sin(t*.9));
+    for(const f of L.fl){
+      const pts = []; const N = 40;
+      for(let i=0;i<=N;i++){ const q = i/N, x = .58+q*(1.02*f.l), yy = f.y+.02*q;
+        pts.push([x, yy + (.02+.20*q)*Math.sin(q*7-t*3.4+f.ph)]); }
+      poly(c,pts,true);
+      strk(c,'rgba(8,12,20,.65)',3.2); strk(c,'rgba(196,232,205,.9)',1.7); }
+    for(const p of L.pili){ const x = p.x, y = p.s*.42;
+      line(c,x,y,x+p.s*.0,y+p.s*(.13+.05*Math.sin(t*2+p.ph)),'rgba(196,232,205,.6)',1.6); }
+    const H = .40+.01*Math.sin(t*1.3);
+    capsulePath(c,-.62,.62,0,H);
+    const bg2 = c.createLinearGradient(0,-H,0,H);
+    bg2.addColorStop(0,'#a9d98a'); bg2.addColorStop(.5,'#7fbf6a'); bg2.addColorStop(1,'#5e9e52');
+    c.fillStyle = bg2; c.fill(); strk(c,INK,2.4);
+    capsulePath(c,-.585,.585,0,H-.04); strk(c,'rgba(255,255,255,.20)',1.2);
+    // нуклеоид
+    const nu = []; for(let i=0;i<16;i++){ const a = i/16*TAU;
+      nu.push([Math.cos(a)*(.30+.07*Math.sin(a*3+t)), Math.sin(a)*(.14+.03*Math.cos(a*2-t))]); }
+    smoothPath(c,nu); fill(c,'rgba(109,91,208,.75)'); strk(c,'rgba(200,190,255,.5)',1.2);
+    for(const rb of L.rib) disc(c, rb.x+.01*Math.sin(t*2+rb.ph), rb.y+.01*Math.cos(t*1.7+rb.ph), rb.r, 'rgba(255,224,122,.9)');
+    c.restore();
+    txtH(c,0,-1.02,'2 мкм',.07,'rgba(210,235,215,.5)','center',500); } },
+
+/* ------------------------------------------------------------- КЛЕТКА -- */
+{ e:-5, name:'Животная клетка', size:'2·10⁻⁵ м', span:1,
+  note:'20 микрон: мембрана, ядро с ДНК, митохондрии-электростанции, ЭПС и аппарат Гольджи. Всё это — одна клетка.',
+  init(L){ const r = mkRnd(81);
+    L.mem = randPoly(r, 24, .97, .06, 0, 0, .95);
+    L.rib = []; for(let i=0;i<54;i++){ const a = r()*TAU, d = Math.sqrt(r())*.8;
+      L.rib.push({ x:Math.cos(a)*d, y:Math.sin(a)*d*.92, ph:r()*TAU }); }
+    L.mito = [{ x:.46, y:.36, a:-.6 }, { x:-.52, y:.42, a:.45 }, { x:.10, y:-.64, a:.15 }];
+    L.vac = [{ x:-.36, y:-.50, r:.13 }, { x:.56, y:-.26, r:.085 }];
+    L.bud = []; for(let i=0;i<4;i++) L.bud.push({ ph:i/4 }); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    const br = 1+.006*Math.sin(t*1.1);
+    c.save(); c.scale(br,br);
+    smoothPath(c,L.mem);
+    fill(c,'rgba(110,196,222,.10)'); strk(c,'rgba(150,224,240,.85)',2.4);
+    c.save(); c.scale(.985,.985); smoothPath(c,L.mem); strk(c,'rgba(150,224,240,.28)',1.2); c.restore();
+    // ЭПС
+    for(let k=0;k<3;k++){ const R = .44+k*.075, pts = [];
+      for(let i=0;i<=26;i++){ const a = -2.3+i*(4.0/26); pts.push([Math.cos(a)*R*.98-.08, Math.sin(a)*R*.86-.02]); }
+      poly(c,pts,true); strk(c, rgba('#b48cff', .30-.07*k), 2.2); }
+    // митохондрии
+    for(const m of L.mito){ const dx = .03*Math.sin(t*.7+m.a*3), dy = .02*Math.cos(t*.9+m.a*2);
+      c.save(); c.translate(m.x+dx, m.y+dy); c.rotate(m.a+.05*Math.sin(t*.6+m.a));
+      c.beginPath(); c.ellipse(0,0,.20,.105,0,0,TAU);
+      fill(c,'#ff9a4d'); strk(c,INK,2); c.save(); c.clip();
+      for(let i=-2;i<=2;i++){ const x = i*.075;
+        line(c,x,-.11,x+.03,.11,'rgba(255,232,200,.75)',1.4); }
+      c.restore(); c.restore(); }
+    // аппарат Гольджи
+    c.save(); c.translate(.50,-.50); c.rotate(-.5);
+    for(let i=0;i<4;i++){ const R = .13+i*.045;
+      arcS(c,0,0,R,-1.4,1.4, rgba('#8ad6ff',.75-.13*i), 2.6); }
+    c.restore();
+    // вакуоли
+    for(const v of L.vac) disc(c,v.x,v.y,v.r,'rgba(140,215,255,.13)','rgba(160,225,255,.45)',1.6);
+    // ядро
+    const np = 1+.02*Math.sin(t*.9);
+    c.save(); c.translate(-.06,-.02); c.scale(np,np);
+    glow(c,0,0,.5,'#a98bff',.35,0);
+    disc(c,0,0,.33,'rgba(150,120,220,.62)','rgba(212,196,255,.9)',2.2);
+    disc(c,.07,-.06,.115,'rgba(96,72,170,.95)','rgba(230,220,255,.5)',1.2);
+    for(let i=0;i<5;i++){ const a = i*TAU/5+.4;
+      disc(c,Math.cos(a)*.29, Math.sin(a)*.29, .038, 'rgba(20,14,35,.85)'); }
+    for(let i=0;i<3;i++){ const a = i*TAU/3+1;
+      c.beginPath(); c.arc(0,0,.20, a, a+1.5); strk(c,'rgba(212,196,255,.45)',1.4); }
+    c.restore();
+    // везикулы от Гольджи
+    for(const b of L.bud){ const q = (t*.22+b.ph)%1, d = .18+q*.5;
+      disc(c,.50+Math.cos(-.5)*0-.34*q, -.50+Math.sin(-.5)*.4+.30*q, .045*(1-q*.6), 'rgba(138,214,255,.85)'); }
+    for(const rb of L.rib) disc(c, rb.x+.012*Math.sin(t*1.8+rb.ph), rb.y+.012*Math.cos(t*1.6+rb.ph),
+      .012, 'rgba(255,228,150,.85)');
+    c.restore(); } },
+
+/* -------------------------------------------------------------- ВОЛОС -- */
+{ e:-4, name:'Человеческий волос', size:'70·10⁻⁶ м', span:1,
+  note:'70 микрон в толщину. Снаружи — чешуйки кутикулы, уложенные как черепица; именно они дают блеск.',
+  init(L){ const r = mkRnd(91);
+    L.st = [{ x0:-1.20, y0:-.58, x1:1.20, y1:.50, bend:.28, w:.140, col:'#cf9f6d', sp:.9, ph:r() },
+            { x0:-1.15, y0:.76,  x1:1.15, y1:-.42, bend:-.24, w:.108, col:'#a8764a', sp:1.1, ph:r() },
+            { x0:-1.05, y0:-1.08, x1:1.05, y1:.16, bend:.20, w:.082, col:'#e2b686', sp:1.3, ph:r() }]; },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    glow(c,0,0,1.3,'#c98a4a',.11,0);
+    for(const s of L.st){
+      const dx = s.x1-s.x0, dy = s.y1-s.y0, len = Math.hypot(dx,dy);
+      const ux = dx/len, uy = dy/len, nx = -uy, ny = ux;
+      const P = q => { const k = Math.sin(q*Math.PI)*s.bend + .020*Math.sin(t*.8+s.ph*7);
+        return [s.x0+dx*q+nx*k, s.y0+dy*q+ny*k]; };
+      const pts = []; for(let i=0;i<=44;i++) pts.push(P(i/44));
+      const shift = a => pts.map(p => [p[0]+nx*a, p[1]+ny*a]);
+      poly(c,pts,true); strkC(c,INK, s.w+.045);
+      poly(c,pts,true); strkC(c, s.col, s.w);
+      poly(c,shift(-s.w*.26),true); strkC(c, rgba('#fff3dd',.34), s.w*.32);
+      poly(c,shift( s.w*.30),true); strkC(c, rgba('#5a3a20',.26), s.w*.28);
+      // медулла
+      c.save(); poly(c,pts,true);
+      c.setLineDash([s.w*1.1, s.w*.85]); strkC(c,'rgba(92,62,32,.28)', s.w*.26); c.setLineDash([]); c.restore();
+      // чешуйки кутикулы, налегающие друг на друга
+      const step = s.w*.92;
+      for(let d = step; d < len-step; d += step){
+        const p = P(d/len);
+        c.beginPath();
+        c.moveTo(p[0]+nx*s.w*.48, p[1]+ny*s.w*.48);
+        c.quadraticCurveTo(p[0]+ux*step*.7, p[1]+uy*step*.7, p[0]-nx*s.w*.48, p[1]-ny*s.w*.48);
+        strkC(c,'rgba(58,34,14,.26)',.018); }
+      // бегущий блик
+      const gq = ((t*.15*s.sp+s.ph)%1);
+      for(let i=0;i<12;i++){ const q = clamp(gq-i*.014,0,1), p = P(q), a = (1-i/12);
+        disc(c,p[0]+nx*s.w*.20, p[1]+ny*s.w*.20, s.w*.32*(1-i/26), rgba('#fff6e4', a*.40)); }
+    } } },
+
+/* ---------------------------------------------------------- ПЕСЧИНКА -- */
+{ e:-3, name:'Песчинка', size:'0,5·10⁻³ м', span:1,
+  note:'Полмиллиметра кварца — ровно посередине между клеткой и монетой. Пляжный песок — обломки горных пород.',
+  init(L){ const r = mkRnd(101);
+    L.g = randPoly(r, 12, .74, .20, .05, -.02, 1);
+    L.small = [{ x:-.74, y:.62, R:.30, a:r()*TAU }, { x:.72, y:-.62, R:.24, a:r()*TAU }]; },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    c.save(); c.translate(0,.94); c.beginPath(); c.ellipse(0,0,.72,.10,0,0,TAU);
+    fill(c,'rgba(0,0,0,.40)'); c.restore();
+    for(const s of L.small){ c.save(); c.translate(s.x,s.y); c.rotate(s.a);
+      const p = randPoly(mkRnd(Math.round(s.R*1000)), 9, s.R, .3, 0, 0, 1);
+      poly(c,p); fill(c,'rgba(150,120,84,.75)'); strk(c,INK,2.2); c.restore(); }
+    c.save(); c.rotate(-.06+.03*Math.sin(t*.5)); c.translate(0,.02*Math.sin(t*.7));
+    glow(c,.05,.04,.95,'#e8b96a',.20,0);
+    poly(c,L.g);
+    const gr = c.createLinearGradient(-.7,-.7,.75,.8);
+    gr.addColorStop(0,'#f0d7a8'); gr.addColorStop(.45,'#d8b177'); gr.addColorStop(1,'#9c7440');
+    c.fillStyle = gr; c.fill(); strk(c,INK,2.6);
+    const P = L.g;
+    for(let i=0;i<5;i++){ const p0 = P[i*2%P.length], p1 = P[(i*2+1)%P.length], p2 = P[(i*2+2)%P.length];
+      poly(c,[[0,0],p0,p1,p2]); fill(c, rgba('#fff6e0', .04+.06*((i%3)))); }
+    for(let i=0;i<4;i++){ const p0 = P[(i*4+1)%P.length];
+      lineC(c,-.04,.03, p0[0]*.88, p0[1]*.88, 'rgba(255,250,235,.16)', .013); }
+    const gl = .5+.5*Math.sin(t*1.4);
+    c.save(); c.translate(-.26-.05*gl,-.28); c.scale(1.7,1);
+    glow(c,0,0,.13+.03*gl,'#ffffff',.10+.26*gl,0); c.restore();
+    c.save(); c.translate(.30,.16); c.scale(1.5,1);
+    glow(c,0,0,.07,'#ffffff',.30,0); c.restore();
+    c.restore(); } },
+
+/* ------------------------------------------------------------ МОНЕТА -- */
+{ e:-2, name:'Монета', size:'2·10⁻² м', span:.95,
+  note:'Два сантиметра. Между монетой и человеком всего два порядка — но там ещё яблоко, чашка и кисть руки.',
+  draw(g){ const c = g.c, t = g.t;
+    const ph = t*.85, cph = Math.cos(ph), sph = Math.sin(ph);
+    const R = .80, rx = R*(.30+.70*Math.abs(cph));
+    const bob = .05*Math.sin(t*1.1);
+    c.save(); c.translate(0,.92); c.beginPath(); c.ellipse(0,0,.60*(1-.25*Math.abs(bob)*4),.085,0,0,TAU);
+    fill(c,'rgba(0,0,0,.42)'); c.restore();
+    c.save(); c.translate(0,bob);
+    glow(c,0,0,1.05,'#ffcf6b',.22,0);
+    // гурт (толщина)
+    const th = R*.14*Math.abs(sph)*(1-Math.abs(cph)*.4);
+    if(th > .02){ const side = sph > 0 ? 1 : -1;
+      c.save(); c.translate(rx*side*.98, 0);
+      rrectPath(c,th,R*1.94,th/2);
+      const eg = c.createLinearGradient(-th/2,0,th/2,0);
+      eg.addColorStop(0,'#8c6a2a'); eg.addColorStop(.5,'#e8c877'); eg.addColorStop(1,'#7a5a22');
+      c.fillStyle = eg; c.fill(); strk(c,INK,1.6);
+      for(let i=1;i<12;i++){ const y = -R+i*(2*R/12);
+        line(c,-th/2,y,th/2,y,'rgba(10,14,23,.45)',1.1); }
+      c.restore(); }
+    c.save(); c.scale(rx/R,1);
+    c.beginPath(); c.arc(0,0,R,0,TAU);
+    const fg = c.createRadialGradient(-R*.3,-R*.35,R*.1,0,0,R*1.15);
+    fg.addColorStop(0,'#fff3c8'); fg.addColorStop(.5,'#f2d183'); fg.addColorStop(1,'#c39c46');
+    c.fillStyle = fg; c.fill(); strk(c,INK,2.4);
+    ring(c,0,0,R*.88,'rgba(120,90,30,.55)',1.6);
+    for(let i=0;i<28;i++){ const a = i*TAU/28;
+      disc(c,Math.cos(a)*R*.80, Math.sin(a)*R*.80, .014, 'rgba(140,106,38,.5)'); }
+    starPath(c,0,-.20,.30,5,-Math.PI/2,.42);
+    fill(c,'#b98f3a'); strk(c,INK,1.6);
+    txt(c,0,.20,'1',.44,'#8e6b28','center',700);
+    txt(c,0,.48,'МАСШТАБ',.115,'rgba(120,90,30,.85)','center',600);
+    arcS(c,0,0,R*.66,.6,2.2,'rgba(255,255,255,.35)',3);
+    c.restore();
+    c.restore(); } },
+
+/* --------------------------------------------------------- КИСТЬ РУКИ -- */
+{ e:-1, name:'Кисть руки', size:'≈0,2 м', span:.92,
+  note:'Двадцать сантиметров: ладонь и пять пальцев. Сгибание пальца задают сухожилия, а не мышцы на самой руке.',
+  init(L){ L.fing = [
+      { x:-.125, l1:.215, l2:.185, a1:-1.86, sp:1.00, w:.100 },
+      { x: 0.000, l1:.245, l2:.205, a1:-1.56, sp:1.06, w:.108 },
+      { x:  .125, l1:.225, l2:.190, a1:-1.30, sp: .96, w:.100 },
+      { x:  .245, l1:.165, l2:.140, a1:-1.08, sp: .80, w:.088 } ]; },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    const SK = '#f3c99f', PALM = [[-.255,.06],[-.285,.36],[-.235,.70],[.215,.70],[.275,.36],[.245,.06]];
+    c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
+    c.translate(0,-.14); c.rotate(-.05+.015*Math.sin(t*.9));
+    glow(c,-.02,.24,1.25,'#e8b57e',.12,0);
+    const fingers = L.fing.map((f,i) => {
+      const wig = .085*Math.sin(t*1.5-i*.55)*f.sp;
+      const a1 = f.a1+wig, a2 = f.a1+wig*.55-.12;
+      const b = [f.x,.12];
+      const j1 = [b[0]+Math.cos(a1)*f.l1, b[1]+Math.sin(a1)*f.l1];
+      const j2 = [j1[0]+Math.cos(a2)*f.l2, j1[1]+Math.sin(a2)*f.l2];
+      return { pts:[b,j1,j2], w:f.w };
+    });
+    const th = .95+.10*Math.sin(t*1.3), tb = [-.21,.30];
+    const tj1 = [tb[0]+Math.cos(-Math.PI+th)*.20, tb[1]+Math.sin(-Math.PI+th)*.20];
+    const tj2 = [tj1[0]+Math.cos(-Math.PI+th+.75)*.17, tj1[1]+Math.sin(-Math.PI+th+.75)*.17];
+    fingers.push({ pts:[tb,tj1,tj2], w:.112, thumb:true });
+    // два прохода: сначала контур, потом кожа — получается слитный силуэт
+    const pass = (col,d) => {
+      for(const f of fingers) for(let i=0;i<2;i++){
+        const p = f.pts[i], q = f.pts[i+1], w = f.w*(1-i*.10)+d;
+        line(c,p[0],p[1],q[0],q[1], col, Math.max(w*CURS,1)); }
+      smoothPath(c, PALM.map(p => [p[0]*(1+d*1.5), .38+(p[1]-.38)*(1+d)])); fill(c,col);
+      c.save(); c.translate(0,.755); rrectPath(c,.50+d*2,.21+d*2,.07); fill(c,col); c.restore(); };
+    pass(INK,.020); pass(SK,0);
+    // суставные складки
+    for(const f of fingers){ const j1 = f.pts[1];
+      const a1 = Math.atan2(f.pts[1][1]-f.pts[0][1], f.pts[1][0]-f.pts[0][0]);
+      c.save(); c.translate(j1[0],j1[1]); c.rotate(a1);
+      line(c,-f.w*.40,0,f.w*.40,0,'rgba(180,120,85,.40)',1.3); c.restore(); }
+    for(let i=0;i<2;i++){ const y = .30+i*.16;
+      c.beginPath(); c.moveTo(-.21,y); c.quadraticCurveTo(-.02,y+.09,.24,y-.02);
+      strk(c,'rgba(180,120,85,.20)',1.2); }
+    c.save(); c.translate(0,.755); rrectPath(c,.50,.21,.07);
+    fill(c,'#4f86e0'); strk(c,INK,2.2); c.restore();
+    line(c,-.23,.735,.23,.735,'rgba(255,255,255,.25)',1.3);
+    // ногти
+    for(const f of fingers){ const p = f.pts[2], q = f.pts[1];
+      const a = Math.atan2(p[1]-q[1], p[0]-q[0]), w = f.w*(f.thumb ? .92 : .82);
+      c.save(); c.translate(p[0]+Math.cos(a)*w*.24, p[1]+Math.sin(a)*w*.24); c.rotate(a+Math.PI/2);
+      c.beginPath(); c.ellipse(0,0,w*.32,w*.44,0,0,TAU);
+      fill(c,'rgba(255,246,238,.95)'); strk(c,'rgba(170,120,92,.55)',1.1); c.restore(); }
+    c.restore();
+    c.save(); c.beginPath(); c.ellipse(.06,.94,.42,.07,0,0,TAU);
+    fill(c,'rgba(0,0,0,.32)'); c.restore(); } },
+
+/* ------------------------------------------------------------ ЧЕЛОВЕК -- */
+{ e:0, name:'Человек', size:'1,75 м', span:.98,
+  note:'Точка отсчёта: 1,75 метра. Влево по масштабу — в клетки и атомы, вправо — в планеты и галактики.',
+  draw(g){ const c = g.c, t = g.t;
+    const br = 1+.010*Math.sin(t*1.5), sway = .012*Math.sin(t*.7);
+    const GROUND = .86, TOP = -.89, SK = '#f0c49a';
+    line(c,-1.18,GROUND+.005,1.18,GROUND+.005,'rgba(190,215,245,.28)',1.2);
+    c.save(); c.beginPath(); c.ellipse(.05,GROUND+.012,.46,.07,0,0,TAU);
+    fill(c,'rgba(0,0,0,.45)'); c.restore();
+    // линейка сбоку — рост
+    line(c,-.66,TOP,-.66,GROUND,'rgba(190,215,245,.30)',1.1);
+    for(let i=0;i<=17;i++){ const y = GROUND-i*.1, big = i%5===0;
+      line(c,-.66,y,-.66+(big?.09:.05),y,'rgba(190,215,245,.42)',1.1); }
+    txtH(c,-.62,TOP-.08,'1,75 м',.13,'rgba(200,225,255,.8)','left',500);
+    c.save(); c.translate(sway*7,0);
+    // конечности: сначала все контуры, затем все заливки — силуэт без швов
+    const lh = [-.300,.130], wv = Math.sin(t*2.3), rhd = [.455+wv*.045,-.925+wv*.02];
+    const limbs = [
+      [-.205,-.550,-.285,-.190+.006*Math.sin(t*1.2), .125, '#4f86e0'],
+      [-.285,-.190, lh[0], lh[1],                    .105, SK],
+      [ .200,-.550, .345,-.700,                      .125, '#4f86e0'],
+      [ .345,-.700, rhd[0], rhd[1],                  .105, SK],
+      [-.105, .140,-.125, .500,                      .185, '#2c3752'],
+      [-.125, .500,-.135, .795,                      .150, '#2c3752'],
+      [ .105, .140, .125, .500,                      .185, '#2c3752'],
+      [ .125, .500, .135, .795,                      .150, '#2c3752'],
+      [-.135, .800,-.255, .845,                      .150, '#1b2130'],
+      [ .135, .800, .255, .845,                      .150, '#1b2130'] ];
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    for(const l of limbs) line(c,l[0],l[1],l[2],l[3], INK, Math.max(l[4]*CURS+3.6,1));
+    for(const l of limbs) line(c,l[0],l[1],l[2],l[3], l[5], Math.max(l[4]*CURS,1));
+    c.lineCap = 'butt';
+    disc(c,lh[0],lh[1]+.03,.058,SK,INK,1.7);
+    c.save(); c.translate(rhd[0]-.01,rhd[1]-.03); c.rotate(-.25+wv*.10);
+    disc(c,0,0,.058,SK,INK,1.7);
+    for(let i=0;i<4;i++){ const a = -1.75+i*.30;
+      line(c,Math.cos(a)*.035,Math.sin(a)*.035,Math.cos(a)*.095,Math.sin(a)*.095,SK,Math.max(.026*CURS,1)); }
+    c.restore();
+    // торс
+    const sh = .215*br, wa = .152, hw = .175;
+    poly(c,[[-sh,-.60],[-.135,-.638],[.135,-.638],[sh,-.60],[wa+.015,.02],[hw,.185],[-hw,.185],[-(wa+.015),.02]]);
+    fill(c,'#4f86e0'); strk(c,INK,2.2);
+    line(c,0,-.52,0,.16,'rgba(255,255,255,.32)',1.3);
+    for(let i=0;i<3;i++) disc(c,0,-.40+i*.135,.016,'rgba(240,248,255,.92)');
+    poly(c,[[-.085,-.60],[0,-.50],[.085,-.60]]); fill(c,'rgba(232,242,255,.9)'); strk(c,INK,1.5);
+    // шея и голова
+    pill(c,0,-.63,0,-.70,.085,SK,1.7);
+    const hy = -.766+.009*Math.sin(t*1.5);
+    disc(c,0,hy,.124,SK,INK,2.2);
+    c.beginPath(); c.arc(0,hy+.014,.124,Math.PI*.97,Math.PI*2.03); fill(c,'#3a2b22'); strk(c,INK,1.8);
+    disc(c,-.113,hy+.012,.028,SK,INK,1.4);
+    disc(c,-.042,hy+.004,.013,'#2a2018'); disc(c,.042,hy+.004,.013,'#2a2018');
+    c.beginPath(); c.arc(0,hy+.032,.042,.28,Math.PI-.28); strk(c,'rgba(130,75,55,.9)',1.5);
+    c.restore(); } },
+
+/* --------------------------------------------------------------- ДОМ --- */
+{ e:1, name:'Дом', size:'≈10 м', span:1,
+  note:'Десять метров: дом, дерево, дым из трубы. Человек здесь — уже деталь пейзажа.',
+  init(L){ const r = mkRnd(201);
+    L.smoke = []; for(let i=0;i<12;i++) L.smoke.push({ ph:i/12, x:(r()-.5)*.05 });
+    L.clouds = [{ x:-1.0, y:-.78, s:.20, v:.05 }, { x:.35, y:-.95, s:.15, v:.075 }, { x:1.0, y:-.62, s:.12, v:.06 }];
+    L.birds = [{ x:-.9, y:-.92, s:1.0 }, { x:-.60, y:-1.04, s:.7 }];
+    L.winPh = r()*TAU; },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    const gy = .64;
+    c.beginPath(); c.rect(-14,gy,28,14); fill(c,'#1e2c26');
+    line(c,-14,gy,14,gy,'rgba(150,200,165,.35)',1.5);
+    for(const cl of L.clouds){ const x = ((cl.x+t*cl.v*.6+1.9)%3.8)-1.9;
+      cloud(c,x,cl.y,cl.s,'rgba(215,230,245,.17)'); }
+    for(const b of L.birds){ const x = ((b.x+t*.05+.3)%2.2)-1.1, f = .05*b.s*Math.abs(Math.sin(t*3.5));
+      line(c,x-.05*b.s,b.y+f,x,b.y,'rgba(230,240,255,.5)',1.6);
+      line(c,x,b.y,x+.05*b.s,b.y+f,'rgba(230,240,255,.5)',1.6); }
+    // дерево
+    c.save(); c.translate(.86,0); c.rotate(.012*Math.sin(t*.9));
+    pill(c,0,gy,-.02,.10,.10,'#6b4a2f',1.6);
+    disc(c,-.02,-.08,.27,'#3f7d4e',INK,2);
+    disc(c,-.22,.02,.19,'#468a55',INK,1.8);
+    disc(c,.18,.04,.20,'#386f45',INK,1.8);
+    disc(c,.02,-.20,.16,'#4a9260',INK,1.6);
+    c.restore();
+    // дом
+    c.save(); c.translate(-.34,0);
+    c.beginPath(); c.rect(.30,-.70,.14,.44); fill(c,'#8a6a5a'); strk(c,INK,2);
+    c.beginPath(); c.rect(-.55,-.06,1.10,.70); fill(c,'#e8dcc8'); strk(c,INK,2.4);
+    for(let i=1;i<5;i++) line(c,-.55,-.06+i*.14,.55,-.06+i*.14,'rgba(120,100,80,.18)',1.1);
+    poly(c,[[-.70,-.06],[0,-.62],[.70,-.06]]); fill(c,'#c2453d'); strk(c,INK,2.4);
+    line(c,-.70,-.06,.70,-.06,'rgba(10,14,23,.35)',1.6);
+    const fl = .5+.5*Math.sin(t*1.7+L.winPh);
+    for(const wx of [.10,.42]){ c.beginPath(); c.rect(wx-.11,.16,.22,.24);
+      fill(c, rgba('#ffe9a8', .35+.55*fl)); strk(c,INK,2);
+      line(c,wx,.16,wx,.40,'rgba(10,14,23,.5)',1.2);
+      line(c,wx-.11,.28,wx+.11,.28,'rgba(10,14,23,.5)',1.2); }
+    disc(c,0,-.34,.075, rgba('#ffe9a8',.3+.5*fl), INK, 1.8);
+    c.beginPath(); c.rect(-.40,.14,.26,.50); fill(c,'#8a5a3a'); strk(c,INK,2.2);
+    disc(c,-.19,.42,.022,'#ffd166');
+    c.restore();
+    poly(c,[[-.72,gy],[-.48,gy],[-.36,1.12],[-1.02,1.12]]); fill(c,'rgba(205,196,178,.30)');
+    for(let x=-1.30;x<-.72;x+=.14) line(c,x,gy-.02,x,gy-.28,'rgba(215,205,185,.45)',2.2);
+    line(c,-1.34,gy-.22,-.66,gy-.22,'rgba(215,205,185,.4)',1.6);
+    line(c,-1.34,gy-.10,-.66,gy-.10,'rgba(215,205,185,.4)',1.6);
+    for(const s of L.smoke){ const q = (t*.15+s.ph)%1;
+      disc(c, .05+s.x+q*.34+.05*Math.sin(q*7+s.ph*6), -.72-q*1.05, .04+.16*q,
+        rgba('#cfd8e2', .30*(1-q)*(1-q))); }
+    txtH(c,0,-1.24,'≈10 м',.08,'rgba(210,228,245,.45)','center',500); } },
+
+/* ---------------------------------------------------------- НЕБОСКРЁБ -- */
+{ e:2, name:'Небоскрёб', size:'≈100 м', span:1,
+  note:'Сто метров, тридцать этажей. Отсюда город виден целиком, а человек — точкой у подножия.',
+  init(L){ const r = mkRnd(202);
+    L.tiers = [{ x0:-.30, x1:.30, y0:.06, y1:.92, cols:8, rows:11 },
+               { x0:-.26, x1:.26, y0:-.36, y1:.06, cols:7, rows:5 },
+               { x0:-.22, x1:.22, y0:-.74, y1:-.36, cols:6, rows:5 },
+               { x0:-.13, x1:.13, y0:-.94, y1:-.74, cols:4, rows:3 }];
+    L.lit = []; for(let i=0;i<400;i++) L.lit.push(r());
+    L.clouds = [{ x:-1.1, y:-.62, s:.26, v:.06 }, { x:.5, y:-1.08, s:.20, v:.085 }, { x:1.2, y:-.22, s:.17, v:.05 }];
+    L.nb = [{ x0:-.94, x1:-.52, y0:.24, y1:.92 }, { x0:.44, x1:.86, y0:.44, y1:.92 }]; },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    const gy = .92;
+    line(c,-14,gy,14,gy,'rgba(170,200,235,.25)',1.4);
+    for(const cl of L.clouds){ const x = ((cl.x+t*cl.v*.6+2.2)%4.4)-2.2;
+      cloud(c,x,cl.y,cl.s,'rgba(210,228,245,.19)'); }
+    for(const b of L.nb){ c.beginPath(); c.rect(b.x0,b.y0,b.x1-b.x0,b.y1-b.y0);
+      fill(c,'#2a3547'); strk(c,INK,2.2);
+      const cols = Math.max(2,Math.round((b.x1-b.x0)/.09)), rows = Math.max(2,Math.round((b.y1-b.y0)/.09));
+      for(let i=0;i<cols;i++) for(let j=0;j<rows;j++){
+        const x = b.x0+.035+i*((b.x1-b.x0)-.07)/Math.max(1,cols-1);
+        const y = b.y0+.045+j*((b.y1-b.y0)-.09)/Math.max(1,rows-1);
+        const on = L.lit[(i*17+j*29)%L.lit.length];
+        disc(c,x,y,.014, on>.62 ? rgba('#ffd98a', .28+.5*(.5+.5*Math.sin(t*.6+i+j)))
+                               : 'rgba(255,255,255,.06)'); } }
+    let k = 0;
+    for(const T of L.tiers){
+      c.beginPath(); c.rect(T.x0,T.y0,T.x1-T.x0,T.y1-T.y0);
+      const gg = c.createLinearGradient(T.x0,0,T.x1,0);
+      gg.addColorStop(0,'#4a5f7e'); gg.addColorStop(.35,'#33445c'); gg.addColorStop(1,'#1d2735');
+      c.fillStyle = gg; c.fill(); strk(c,INK,2.4);
+      for(let i=0;i<T.cols;i++) for(let j=0;j<T.rows;j++){
+        const x = T.x0+.035+i*((T.x1-T.x0)-.07)/Math.max(1,T.cols-1);
+        const y = T.y0+.04+j*((T.y1-T.y0)-.08)/Math.max(1,T.rows-1);
+        const on = L.lit[k++%L.lit.length];
+        disc(c,x,y,.016, on>.58 ? rgba('#ffe0a0', .32+.5*(.5+.5*Math.sin(t*.5+k)))
+                                : 'rgba(200,225,255,.09)'); } }
+    const q = (t*.09)%1, bandY = -.95+q*1.9;
+    c.save(); c.beginPath(); c.rect(-.30,-.94,.60,1.86); c.clip();
+    c.beginPath(); c.moveTo(-.30,bandY); c.lineTo(.30,bandY-.30);
+    c.lineTo(.30,bandY-.46); c.lineTo(-.30,bandY-.16);
+    fill(c,'rgba(255,255,255,.07)'); c.restore();
+    line(c,0,-.94,0,-1.24,'#8fa3bd',2.2);
+    const bl2 = Math.pow(.5+.5*Math.sin(t*2.6),6);
+    glow(c,0,-1.25,.10+bl2*.24,'#ff5a4d',.28+.5*bl2,0);
+    disc(c,0,-1.25,.028, rgba('#ff8a7a',.6+.4*bl2), '#3a1a18',1.2);
+    txtH(c,0,-1.44,'≈100 м',.08,'rgba(210,228,245,.45)','center',500); } },
+
+/* ------------------------------------------------------------ КВАРТАЛ -- */
+{ e:3, name:'Городской квартал', size:'≈1 км', span:1,
+  note:'Километр: улицы, дома, парк с прудом. Машины едут, светофоры переключаются.',
+  init(L){ const r = mkRnd(203);
+    L.blocks = [];
+    for(let i=0;i<3;i++) for(let j=0;j<3;j++){
+      const b = { cx:-.80+i*.80, cy:-.80+j*.80, w:.68, h:.68,
+        kind:(i===1&&j===1) ? 'park' : 'city', r:r(), bld:[] };
+      if(b.kind === 'city') for(let k=0;k<6;k++){
+        const gx = b.cx-.235+(k%3)*.235, gy = b.cy-.235+Math.floor(k/3)*.235;
+        const bw = .12+r()*.07, bh = .11+r()*.07;
+        b.bld.push({ x:gx-bw/2, y:gy-bh/2, w:bw, h:bh,
+          c:['#3d4b5e','#455468','#364253','#4d5d74'][Math.floor(r()*4)] });
+      }
+      L.blocks.push(b);
+    }
+    L.cars = [{ ax:'x', lane:-.20, dir:1, off:.00, col:'#ffd166' }, { ax:'x', lane:-.34, dir:1, off:.55, col:'#8ad6ff' },
+              { ax:'x', lane:.20, dir:-1, off:.28, col:'#ff8fa3' }, { ax:'x', lane:.34, dir:-1, off:.78, col:'#a8e07a' },
+              { ax:'y', lane:-.20, dir:-1, off:.12, col:'#ffd166' }, { ax:'y', lane:.34, dir:1, off:.62, col:'#c8a7ff' }];
+    L.trees = []; for(let i=0;i<7;i++) L.trees.push({ x:-.95+(r()-.5)*.5, y:-.95+(r()-.5)*.5, s:.055+r()*.03 }); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    c.beginPath(); c.rect(-14,-14,28,28); fill(c,'#141a22');
+    for(const b of L.blocks){
+      c.beginPath(); c.rect(b.cx-b.w/2,b.cy-b.h/2,b.w,b.h);
+      fill(c, b.kind === 'park' ? '#2c4a33' : '#232c38');
+      strk(c,'rgba(160,190,225,.18)',1.2);
+      if(b.kind === 'park'){
+        c.save(); c.translate(b.cx+.05,b.cy+.10);
+        const p = []; for(let i=0;i<12;i++){ const a = i/12*TAU, rr = .17+.04*Math.sin(a*3+b.r*9);
+          p.push([Math.cos(a)*rr, Math.sin(a)*rr*.75]); }
+        smoothPath(c,p); fill(c,'#1f5f8a'); strk(c,'rgba(150,215,255,.35)',1.4); c.restore();
+      } else {
+        for(const bd of b.bld){
+          c.beginPath(); c.rect(bd.x+.016,bd.y+.016,bd.w,bd.h); fill(c,'rgba(4,8,14,.6)');
+          c.beginPath(); c.rect(bd.x,bd.y,bd.w,bd.h); fill(c,bd.c); strk(c,'rgba(8,12,20,.85)',1.3);
+          c.beginPath(); c.rect(bd.x+.012,bd.y+.012,bd.w*.5,bd.h*.38); fill(c,'rgba(255,255,255,.10)');
+        }
+      }
+    }
+    for(const tr of L.trees){ disc(c,tr.x,tr.y,tr.s,'#4c8a58','rgba(10,20,14,.6)',1.2);
+      disc(c,tr.x-tr.s*.3,tr.y-tr.s*.3,tr.s*.45,'rgba(255,255,255,.12)'); }
+    for(const x of [-0.475,0.475]) for(let y=-1.45;y<1.4;y+=.36) lineC(c,x,y,x,y+.18,'rgba(235,220,150,.32)',.022);
+    for(const y of [-0.475,0.475]) for(let x=-1.45;x<1.4;x+=.36) lineC(c,x,y,x+.18,y,'rgba(235,220,150,.32)',.022);
+    for(const s of [-1,1]) for(let i=0;i<4;i++){
+      c.beginPath(); c.rect(s*(.30+i*.06)-.022,-.075,.05,.15); fill(c,'rgba(235,240,250,.45)');
+      c.beginPath(); c.rect(-.075,s*(.30+i*.06)-.022,.15,.05); fill(c,'rgba(235,240,250,.45)'); }
+    const ph = (t*.24)%1, st = ph < .45 ? 0 : (ph < .55 ? 1 : 2), cols = ['#ff5a4d','#ffd166','#5ef0a0'];
+    for(const corner of [[-.27,-.27],[.21,.21]]){
+      c.beginPath(); c.rect(corner[0],corner[1],.055,.15); fill(c,'#1b2029'); strk(c,'rgba(200,220,240,.4)',1.1);
+      for(let i=0;i<3;i++) disc(c,corner[0]+.027,corner[1]+.026+i*.048,.013,
+        i === st ? rgba(cols[i],.95) : rgba(cols[i],.14)); }
+    for(const car of L.cars){
+      const q = (t*(.10+(car.lane>0?.02:.05))+car.off)%1, pos = -1.55+q*3.1;
+      const px = car.ax === 'x' ? pos : car.lane, py = car.ax === 'x' ? car.lane : pos;
+      const rot = car.ax === 'y' ? (car.dir>0 ? Math.PI/2 : -Math.PI/2) : (car.dir>0 ? 0 : Math.PI);
+      c.save(); c.translate(px,py); c.rotate(rot);
+      rrectPath(c,.15,.072,.02); fill(c,car.col); strk(c,'rgba(10,14,23,.9)',1.3);
+      c.beginPath(); c.rect(.012,-.026,.05,.052); fill(c,'rgba(230,245,255,.8)');
+      c.beginPath(); c.rect(.070,-.030,.022,.060); fill(c,'rgba(255,240,200,.85)');
+      c.restore(); }
+    txtH(c,0,-1.44,'≈1 км',.065,'rgba(210,228,245,.42)','center',500); } },
+
+/* -------------------------------------------------------------- ГОРОД -- */
+{ e:4, name:'Город', size:'≈10 км', span:1,
+  note:'Десять километров: река с мостами, кольцевая дорога, районы, аэропорт со взлетающим самолётом.',
+  init(L){ const r = mkRnd(204);
+    L.river = [[-1.6,-1.10],[-1.15,-.78],[-.72,-.56],[-.30,-.50],[.10,-.34],[.50,-.04],[.80,.36],[.95,.82],[1.05,1.6]];
+    L.city = []; for(let i=0;i<430;i++){
+      const u1 = (r()*2-1), u2 = (r()*2-1);
+      const x = Math.sign(u1)*Math.pow(Math.abs(u1),1.35)*1.18;
+      const y = Math.sign(u2)*Math.pow(Math.abs(u2),1.35)*1.18;
+      L.city.push({ x, y, w:.022+r()*.048, h:.022+r()*.048, l:r() }); }
+    L.cars = []; for(let i=0;i<16;i++) L.cars.push({ a:r()*TAU, sp:(.5+r()*.5)*(r()<.5?-1:1),
+      rr:.60+r()*.09, col:['#ffd166','#8ad6ff','#ff8fa3','#a8e07a'][i%4] });
+    L.boats = [.05,.42,.76]; L.towers = [[-.58,-.74],[.34,-.62],[-.30,.44]]; },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    c.beginPath(); c.rect(-14,-14,28,28); fill(c,'#0e141d');
+    for(const b of L.city){
+      if(Math.abs(b.y) > 1.22 || Math.abs(b.x) > 1.22) continue;
+      c.beginPath(); c.rect(b.x,b.y,b.w,b.h);
+      fill(c, b.l > .72 ? '#37465c' : (b.l > .4 ? '#2c3948' : '#222d3c'));
+      strk(c,'rgba(150,180,215,.14)',1);
+      if(b.l > .90) disc(c, b.x+b.w*.5, b.y+b.h*.5, .006, 'rgba(255,225,160,.75)'); }
+    c.save(); smoothPath(c, randPoly(mkRnd(77), 12, .28, .25, .74, -.66, .85));
+    fill(c,'#2b4633'); strk(c,'rgba(150,200,170,.22)',1.2); c.restore();
+    c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
+    poly(c,L.river,true); c.lineWidth = .40; c.strokeStyle = '#173a5e'; c.stroke();
+    c.lineWidth = .30; c.strokeStyle = '#245888'; c.stroke();
+    c.lineWidth = .10; c.strokeStyle = 'rgba(150,215,255,.18)'; c.stroke();
+    c.lineCap = 'butt'; c.restore();
+    c.save(); poly(c,L.river,true);
+    c.setLineDash([.05,.05]); strk(c,'rgba(200,230,255,.25)',1.4); c.setLineDash([]); c.restore();
+    for(const br of [[-.62,-.53,-.30],[.62,.13,.72]]){
+      c.save(); c.translate(br[0],br[1]); c.rotate(br[2]);
+      c.beginPath(); c.rect(-.05,-.20,.10,.40); fill(c,'#4a586a'); strk(c,INK,1.6);
+      line(c,0,-.20,0,.20,'rgba(235,240,250,.5)',1.4); c.restore(); }
+    // стадион
+    c.save(); c.translate(-.86,.60); c.beginPath(); c.ellipse(0,0,.20,.15,0,0,TAU);
+    fill(c,'#3b4757'); strk(c,'rgba(200,225,255,.3)',1.4);
+    c.beginPath(); c.ellipse(0,0,.11,.08,0,0,TAU); fill(c,'#2c6a45'); c.restore();
+    // аэропорт
+    c.save(); c.translate(-.74,.86); c.rotate(-.06);
+    c.beginPath(); c.rect(-.42,-.045,.84,.09); fill(c,'#2a3441'); strk(c,'rgba(200,225,255,.28)',1.2);
+    c.setLineDash([.05,.05]); line(c,-.38,0,.38,0,'rgba(235,240,250,.55)',1.2); c.setLineDash([]);
+    c.beginPath(); c.rect(.18,.07,.20,.06); fill(c,'#39465a'); strk(c,INK,1.2);
+    c.restore();
+    // кольцевая
+    c.save(); c.beginPath(); c.ellipse(0,0,.95,.72,0,0,TAU);
+    c.setLineDash([.10,.07]); strk(c,'rgba(170,200,230,.35)',2.2); c.setLineDash([]); c.restore();
+    for(const car of L.cars){
+      const a = car.a+t*car.sp*.55, ex = .95*Math.cos(a), ey = .72*Math.sin(a);
+      const ang = Math.atan2(.72*Math.cos(a), -.95*Math.sin(a));
+      c.save(); c.translate(ex,ey); c.rotate(ang*(car.sp>0?1:-1));
+      c.beginPath(); c.rect(-.018,-.010,.036,.020); fill(c,car.col);
+      disc(c,.020,.007,.005,'rgba(255,240,190,.9)'); disc(c,.020,-.007,.005,'rgba(255,240,190,.9)');
+      c.restore(); }
+    for(const b of L.towers){ c.beginPath(); c.rect(b[0]-.030,b[1]-.030,.060,.060);
+      fill(c,'#3d4a5c'); strk(c,INK,1.4);
+      const bl = Math.pow(.5+.5*Math.sin(t*1.6+b[0]*7),5);
+      disc(c,b[0],b[1]-.034,.011, rgba('#ff6b5c',.35+.65*bl)); }
+    for(const q0 of L.boats){ const q = (q0+t*.012)%1, p = alongPath(L.river,q);
+      c.save(); c.translate(p[0],p[1]); c.rotate(p[2]);
+      c.beginPath(); c.moveTo(.055,0); c.lineTo(-.030,-.016); c.lineTo(-.045,0); c.lineTo(-.030,.016);
+      c.closePath(); fill(c,'#e6e0cf'); strk(c,INK,1.1);
+      for(let i=1;i<5;i++) disc(c,-.06-i*.035,0,.010+i*.004, rgba('#dff0ff',.22/i)); c.restore(); }
+    // самолёт взлетает
+    const pq = (t*.085)%1, u = pq;
+    if(u < .92){
+      const px = -.74-.42+u*2.3, py = .86-u*u*1.5, al = clamp((1-u)*1.6,0,1);
+      const ang = -Math.atan2(2*u*1.5, 2.3)*1.0;
+      c.save(); c.globalAlpha = al; c.translate(px,py); c.rotate(ang);
+      c.beginPath(); c.moveTo(.055,0); c.quadraticCurveTo(.02,-.016,-.045,-.012);
+      c.quadraticCurveTo(-.06,0,-.045,.012); c.quadraticCurveTo(.02,.016,.055,0);
+      c.closePath(); fill(c,'#e8eef7'); strk(c,INK,1.2);
+      poly(c,[[-.005,.005],[-.035,.075],[.010,.020]]); fill(c,'#cfd8e6');
+      poly(c,[[-.005,-.005],[-.035,-.075],[.010,-.020]]); fill(c,'#cfd8e6');
+      poly(c,[[-.046,-.008],[-.062,-.030],[-.052,-.004]]); fill(c,'#cfd8e6');
+      c.restore();
+      c.save(); c.globalAlpha = al*.35; c.translate(px,py); c.scale(1,1.6);
+      disc(c,0,0,.020,'rgba(255,255,255,.5)'); c.restore(); }
+    txtH(c,0,-1.48,'≈10 км',.065,'rgba(210,228,245,.42)','center',500); } },
+
+/* ---------------------------------------------------------- ПОБЕРЕЖЬЕ -- */
+{ e:5, name:'Побережье', size:'≈100 км', span:1,
+  note:'Сто километров: берег, бухта, острова, горы в глубине материка. Волны идут к пляжу, корабли — по фарватеру.',
+  init(L){ const r = mkRnd(205);
+    L.cY = x => -.10+.26*Math.sin(x*1.6+.7)+.12*Math.sin(x*3.1+2.1)+.05*Math.sin(x*6.3);
+    L.coast = []; for(let i=0;i<=160;i++){ const x = -14+i*(28/160); L.coast.push([x, L.cY(x)]); }
+    L.forest = []; for(let i=0;i<220;i++){ const x = (r()*2-1)*1.5, y = (r()*2-1)*1.5;
+      if(y < L.cY(x)-.06) L.forest.push({ x, y, s:.010+r()*.012 }); }
+    L.ships = [.06,.38,.66,.9]; L.isl = [{ x:.85, y:.72, R:.20 }, { x:-1.05, y:.95, R:.13 }];
+    L.clouds = [{ x:-1.2, y:-1.05, s:.28, v:.05 }, { x:.4, y:-.9, s:.22, v:.075 }, { x:1.2, y:-1.2, s:.19, v:.06 }];
+    L.city = []; for(let i=0;i<22;i++){ const gx = -0.10+(i%5)*.062, gy = .34+Math.floor(i/5)*.058;
+      L.city.push({ x:gx+(r()-.5)*.012, y:gy+(r()-.5)*.012, s:.030+r()*.022, c: r()<.3 ? '#a9b2be' : '#8e97a4' }); } },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    c.beginPath(); c.rect(-16,-16,32,32);
+    const sg = c.createLinearGradient(0,-1.7,0,1.7);
+    sg.addColorStop(0,'#173a63'); sg.addColorStop(1,'#0b2036');
+    c.fillStyle = sg; c.fill();
+    // волны
+    for(let k=0;k<7;k++){ const d = ((t*.055+k/7)%1)*.85;
+      const al = .22*Math.sin(Math.PI*Math.min(1,d/.85));
+      if(al < .02) continue;
+      for(let i=0;i<64;i++){ const x = -5.1+i*.16, y = L.cY(x)+.10+d;
+        c.beginPath(); c.moveTo(x,y);
+        c.quadraticCurveTo(x+.035,y-.030,x+.07,y);
+        strk(c, rgba('#bfe2ff', al), 1.4); } }
+    // суша
+    const land = L.coast.concat([[16,-16],[-16,-16]]);
+    smoothPath(c,land);
+    const lg = c.createLinearGradient(0,-1.7,0,.4);
+    lg.addColorStop(0,'#3c6b48'); lg.addColorStop(1,'#2b5238');
+    c.fillStyle = lg; c.fill(); strk(c,'rgba(215,235,255,.35)',2);
+    c.save(); poly(c,L.coast,true);
+    c.lineWidth = .12; c.strokeStyle = 'rgba(230,215,175,.55)'; c.stroke();
+    c.lineWidth = .05; c.strokeStyle = 'rgba(255,255,255,.35)'; c.stroke(); c.restore();
+    for(const f of L.forest) disc(c,f.x,f.y,f.s,'rgba(26,64,38,.55)');
+    // горы
+    for(let i=0;i<8;i++){ const x = -1.35+i*.30, y = -.62+.10*Math.sin(i*1.7), h = .32+.10*Math.sin(i*2.3);
+      poly(c,[[x-.24,y],[x,y-h],[x+.24,y]]); fill(c,'#5b6472'); strk(c,'rgba(15,22,30,.8)',1.8);
+      poly(c,[[x-.09,y-h*.62],[x,y-h],[x+.09,y-h*.62]]); fill(c,'rgba(240,248,255,.85)');
+      for(let k=1;k<4;k++){ const u = k/4;
+        line(c,x+ (u*.22), y-u*h*.85, x+u*.10, y-u*h*.85, 'rgba(15,22,30,.30)',1.2); } }
+    // река к бухте
+    const rv = [[-.95,-.30],[-.70,.05],[-.45,.28],[-.28,.44]];
+    c.save(); poly(c,rv,true); c.lineWidth = .045; c.strokeStyle = '#3f86c4'; c.stroke(); c.restore();
+    // город в устье
+    for(const b of L.city){ c.beginPath(); c.rect(b.x,b.y,b.s,b.s*.8);
+      fill(c,b.c); strk(c,INK,1.1); }
+    line(c,-.09,.44,.06,.30,'rgba(230,240,250,.75)',2.4);
+    glow(c,0,.44,.30,'#ffd9a0',.18,0);
+    // острова
+    for(const is of L.isl){ const p = randPoly(mkRnd(Math.round(is.x*1000)+7), 11, is.R, .35, is.x, is.y, .8);
+      smoothPath(c,p); fill(c,'#3a6a48'); strk(c,'rgba(230,215,175,.6)',2);
+      c.save(); smoothPath(c,p); c.clip(); c.beginPath();
+      c.arc(is.x,is.y,is.R*1.1,0,TAU); strk(c,'rgba(235,220,180,.35)',6); c.restore(); }
+    // корабли
+    for(const q0 of L.ships){ const x = ((q0+t*.020)%1)*3.4-1.7, y = .95+.12*Math.sin(x*1.4);
+      c.save(); c.translate(x,y); c.rotate(.06);
+      c.beginPath(); c.moveTo(.07,0); c.lineTo(-.04,-.022); c.lineTo(-.055,0); c.lineTo(-.04,.022);
+      c.closePath(); fill(c,'#dfe6ee'); strk(c,INK,1.2);
+      c.beginPath(); c.rect(-.012,-.018,.024,.012); fill(c,'#9aa6b4');
+      for(let i=1;i<6;i++) disc(c,-.075-i*.030,0,.012+i*.005, rgba('#dff0ff',.20/i)); c.restore(); }
+    for(const cl of L.clouds){ const x = ((cl.x+t*cl.v*.6+2.4)%4.8)-2.4, y = cl.y;
+      cloud(c,x+.08,y+.14,cl.s*.95,'rgba(0,0,0,.16)');
+      cloud(c,x,y,cl.s,'rgba(232,240,250,.44)'); }
+    txtH(c,0,-1.52,'≈100 км',.07,'rgba(210,228,245,.45)','center',500); } },
+
+/* ---------------------------------------------------------- КОНТИНЕНТ -- */
+{ e:6, name:'Континент', size:'≈1000 км', span:1,
+  note:'Тысяча километров: горные хребты, леса, пустыня, реки и огни городов. Циклон крутится над океаном.',
+  init(L){ const r = mkRnd(206);
+    L.land = randPoly(r, 20, .82, .30, .22, .10, .92);
+    L.ridge = []; for(let i=0;i<16;i++) L.ridge.push({ x:-.28+i*.085, y:-.42+.10*Math.sin(i*1.4), h:.16+.07*Math.sin(i*2.1) });
+    L.rivers = [
+      [[-.30,-.36],[-.24,-.10],[-.14,.10],[-.10,.34]],
+      [[-.06,-.30],[.06,-.04],[.16,.20],[.22,.40]],
+      [[-.52,-.20],[-.46,.06],[-.42,.30]] ];
+    L.cities = []; for(let i=0;i<14;i++){ const a = r()*TAU, d = Math.sqrt(r())*.70;
+      L.cities.push({ x:.22+Math.cos(a)*d, y:.10+Math.sin(a)*d*.9, ph:r()*TAU }); }
+    L.lakes = [{ x:-.02, y:-.22, R:.07 }, { x:-.40, y:.34, R:.05 }];
+    L.clouds = [{ x:-1.1, y:-.85, s:.30, v:.05 }, { x:.55, y:-1.1, s:.24, v:.07 }, { x:1.35, y:-.35, s:.20, v:.06 }];
+    L.storm = { x:-.85, y:.60, R:.30 }; },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    c.beginPath(); c.rect(-16,-16,32,32);
+    const og = c.createLinearGradient(-1,-1,1,1);
+    og.addColorStop(0,'#123457'); og.addColorStop(1,'#0a1e34');
+    c.fillStyle = og; c.fill();
+    // циклон
+    c.save(); c.translate(L.storm.x,L.storm.y);
+    for(let k=0;k<5;k++){ const a0 = t*.25+k*TAU/5, R = L.storm.R*(.35+k*.16);
+      for(let j=0;j<10;j++){ const a = a0+j*.42;
+        c.beginPath(); c.arc(0,0,R,a,a+.34);
+        strk(c, rgba('#cfe4f5',.16-.02*k), 3+k); } }
+    c.beginPath(); c.arc(0,0,L.storm.R*.16,0,TAU); fill(c,'rgba(240,248,255,.7)'); c.restore();
+    // материк
+    c.save(); c.translate(.10,.06); smoothPath(c,L.land); c.restore();
+    const lg = c.createLinearGradient(0,-1,0,1);
+    lg.addColorStop(0,'#4a6b45'); lg.addColorStop(.5,'#6d7a4a'); lg.addColorStop(1,'#8a7c50');
+    c.fillStyle = lg; c.fill(); strk(c,'rgba(225,240,255,.45)',2);
+    c.save(); c.translate(.10,.06); smoothPath(c,L.land);
+    c.lineWidth = .09; c.strokeStyle = 'rgba(150,200,235,.30)'; c.stroke(); c.restore();
+    // пустыня
+    c.save(); c.translate(.30,.20); smoothPath(c, randPoly(mkRnd(9), 12, .26, .3, .18, .16, .8));
+    fill(c,'rgba(196,164,102,.55)'); c.restore();
+    // хребет
+    for(const m of L.ridge){ c.save(); c.translate(.10+m.x,.06+m.y);
+      poly(c,[[-.075,0],[0,-m.h],[.075,0]]); fill(c,'#6b7480'); strk(c,'rgba(14,20,28,.75)',1.6);
+      poly(c,[[-.028,-m.h*.6],[0,-m.h],[.028,-m.h*.6]]); fill(c,'rgba(242,248,255,.9)');
+      c.restore(); }
+    // реки
+    for(const rv of L.rivers){ c.save(); c.translate(.10,.06);
+      const pts = rv.map((p,i) => [p[0], p[1]+.012*Math.sin(t*1.2+i*1.7)]);
+      poly(c,pts,true); c.lineWidth = .022; c.lineJoin = 'round'; c.strokeStyle = '#4f9bd8'; c.stroke();
+      c.restore(); }
+    for(const lk of L.lakes){ c.save(); c.translate(.10+lk.x,.06+lk.y);
+      smoothPath(c, randPoly(mkRnd(Math.round(lk.R*900)), 10, lk.R, .3, 0, 0, .8));
+      fill(c,'#3f86c4'); c.restore(); }
+    // леса
+    for(let i=0;i<260;i++){ const a = mkRnd(i*37)()*TAU, d = Math.sqrt(mkRnd(i*91)())*.74;
+      const x = .10+Math.cos(a)*d, y = .06+Math.sin(a)*d*.9;
+      disc(c,x,y,.011,'rgba(28,72,42,.5)'); }
+    for(const ct of L.cities){ const g2 = .45+.55*Math.max(0,Math.sin(t*.7+ct.ph));
+      glow(c,ct.x,ct.y,.055,'#ffd08a',.30*g2,0);
+      disc(c,ct.x,ct.y,.011, rgba('#fff0c0',.6+.4*g2)); }
+    for(const cl of L.clouds){ const x = ((cl.x+t*cl.v*.6+2.6)%5.2)-2.6;
+      cloud(c,x+.06,cl.y+.14,cl.s*.95,'rgba(0,0,0,.16)');
+      cloud(c,x,cl.y,cl.s,'rgba(230,240,250,.36)'); }
+    txtH(c,0,-1.55,'≈1000 км',.07,'rgba(210,228,245,.45)','center',500); } },
+
+/* ------------------------------------------------------------- ЗЕМЛЯ --- */
+{ e:7, name:'Земля', size:'⌀ 12 742 км', span:1,
+  note:'Планета целиком: океаны, материки, ледяные шапки и облака. Один оборот вокруг оси — сутки.',
+  init(L){ const r = mkRnd(301);
+    L.cont = []; for(let i=0;i<6;i++) L.cont.push({ p:randPoly(r,13,.20+r()*.30,.42,(r()*2-1)*.62,(r()*2-1)*.52,.78+r()*.5), k:r() });
+    L.clouds = []; for(let i=0;i<9;i++) L.clouds.push({ x:r()*2, y:(r()*2-1)*.75, w:.28+r()*.42, h:.05+r()*.07, a:.12+r()*.14, sp:.4+r()*.9 });
+    L.lights = []; for(let i=0;i<30;i++){ const a = r()*TAU, d = Math.sqrt(r())*.84;
+      L.lights.push({ x:Math.cos(a)*d, y:Math.sin(a)*d*.92, ph:r()*TAU }); }
+    L.stars = []; for(let i=0;i<80;i++) L.stars.push({ x:(r()*2-1)*1.6, y:(r()*2-1)*1.6, s:r()*.012+.003, ph:r()*TAU }); },
+  draw(g){ const c = g.c, t = g.t, L = g.L, R = .90;
+    for(const s of L.stars) disc(c,s.x,s.y,s.s, rgba('#cfe0ff', .18+.4*Math.max(0,Math.sin(t*.6+s.ph))));
+    glow(c,0,0,R*2.2,'#3d7fd6',.26,0);
+    c.save(); c.beginPath(); c.arc(0,0,R,0,TAU); c.clip();
+    const og = c.createRadialGradient(-R*.35,-R*.38,R*.08,0,0,R*1.4);
+    og.addColorStop(0,'#3b93e0'); og.addColorStop(.55,'#1b5fae'); og.addColorStop(1,'#0a2b56');
+    c.fillStyle = og; c.fillRect(-R,-R,2*R,2*R);
+    const Pd = 2*R, sh = (t*.030)%Pd;
+    for(const ct of L.cont) for(const k of [-1,0,1]){
+      c.save(); c.translate(k*Pd-sh, .05*Math.sin(ct.k*9));
+      smoothPath(c,ct.p); fill(c,'#3f7d4e'); strk(c,'rgba(220,240,255,.3)',1.5);
+      c.save(); c.scale(.6,.6); smoothPath(c,ct.p); fill(c,'rgba(196,164,102,.35)'); c.restore();
+      c.restore(); }
+    const capPath = (yTop,sign) => { const p2 = []; for(let i=0;i<=24;i++){ const x = -R+2*R*i/24;
+        p2.push([x, yTop+sign*.05*R*Math.sin(i*.9)]); }
+      if(sign < 0){ p2.push([R,-R],[-R,-R]); } else { p2.push([R,R],[-R,R]); }
+      return p2; };
+    c.beginPath(); poly(c,capPath(-R*.68,1)); fill(c,'rgba(238,248,255,.92)');
+    c.beginPath(); poly(c,capPath(R*.72,1)); fill(c,'rgba(238,248,255,.88)');
+    const ng = c.createRadialGradient(-R*.45,-R*.45,R*.2,-R*.1,-R*.1,R*1.5);
+    ng.addColorStop(0,'rgba(0,0,0,0)'); ng.addColorStop(1,'rgba(2,6,16,.72)');
+    c.fillStyle = ng; c.fillRect(-R,-R,2*R,2*R);
+    for(const li of L.lights) if(li.x > .06)
+      disc(c,li.x,li.y,.011, rgba('#ffd98a', .35*(.4+.6*Math.max(0,Math.sin(t*1.3+li.ph)))));
+    for(const cl of L.clouds){ const x = (((cl.x+t*cl.sp*.05)%2)+2)%2-1;
+      c.beginPath(); c.ellipse(x,cl.y,cl.w,cl.h,0,0,TAU); fill(c, rgba('#ffffff', cl.a*.85));
+      c.beginPath(); c.ellipse(x+cl.w*.35,cl.y+cl.h*.5,cl.w*.55,cl.h*.7,0,0,TAU); fill(c, rgba('#ffffff', cl.a*.5)); }
+    c.restore();
+    c.save(); c.beginPath(); c.arc(0,0,R,0,TAU); c.clip();
+    glow(c,-R*.42,-R*.45,R*.7,'#ffffff',.20,0); c.restore();
+    glowR(c,0,0,R,R*1.15,'#8fc8ff',.0,.34);
+    ring(c,0,0,R,'rgba(190,225,255,.5)',1.8);
+    txtH(c,0,-1.22,'⌀ 12 742 км',.06,'rgba(210,228,245,.45)','center',500); } },
+
+/* -------------------------------------------------- ЗЕМЛЯ И ЛУНА ------- */
+{ e:8, name:'Система Земля — Луна', size:'384 400 км', span:1,
+  note:'Луна в тридцати земных диаметрах от нас. Свет от неё идёт 1,3 секунды, от Солнца — 8 минут.',
+  init(L){ const r = mkRnd(302);
+    L.cr = []; for(let i=0;i<7;i++){ const a = r()*TAU, d = Math.sqrt(r())*.62;
+      L.cr.push({ x:Math.cos(a)*d, y:Math.sin(a)*d, r:.05+r()*.07 }); }
+    L.stars = []; for(let i=0;i<170;i++) L.stars.push({ x:(r()*2-1)*1.6, y:(r()*2-1)*1.6, s:r()*.011+.003, ph:r()*TAU });
+    L.cont = []; for(let i=0;i<5;i++) L.cont.push(randPoly(r,11,.14+r()*.13,.45,(r()*2-1)*.3,(r()*2-1)*.3,.8)); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    for(const s of L.stars) disc(c,s.x,s.y,s.s, rgba('#cfe0ff', .16+.42*Math.max(0,Math.sin(t*.7+s.ph))));
+    const ex = -.52, ey = .10, ER = .20, MR = .075;
+    c.save(); c.beginPath(); c.ellipse(ex,ey,1.02,.62,0,0,TAU);
+    c.setLineDash([.05,.055]); strk(c,'rgba(170,205,245,.35)',1.5); c.setLineDash([]); c.restore();
+    c.save(); c.beginPath(); c.arc(ex,ey,ER,0,TAU); c.clip();
+    const eg = c.createRadialGradient(ex-ER*.4,ey-ER*.4,ER*.1,ex,ey,ER*1.3);
+    eg.addColorStop(0,'#4aa0e8'); eg.addColorStop(.6,'#1b5fae'); eg.addColorStop(1,'#0a2b56');
+    c.fillStyle = eg; c.fillRect(ex-ER,ey-ER,2*ER,2*ER);
+    const sh = (t*.05)%(2*ER);
+    for(const ct of L.cont) for(const k of [-1,0,1]){
+      c.save(); c.translate(ex+k*2*ER-sh,ey); smoothPath(c,ct); fill(c,'#3f7d4e'); c.restore(); }
+    c.restore();
+    glowR(c,ex,ey,ER,ER*1.18,'#8fc8ff',0,.4);
+    ring(c,ex,ey,ER,'rgba(190,225,255,.5)',1.6);
+    const a = t*.40, mx = ex+Math.cos(a)*1.02, my = ey+Math.sin(a)*.62;
+    glow(c,mx,my,MR*2.6,'#cfd8e6',.20,0);
+    disc(c,mx,my,MR,'#c9c6bd','rgba(20,24,32,.7)',1.4);
+    for(const cr of L.cr) disc(c,mx+cr.x*MR*.9,my+cr.y*MR*.9,cr.r*MR*.6,'rgba(120,116,108,.5)');
+    c.save(); c.beginPath(); c.arc(mx,my,MR,0,TAU); c.clip();
+    const mg = c.createRadialGradient(mx-MR*.4,my-MR*.4,MR*.1,mx,my,MR*1.35);
+    mg.addColorStop(0,'rgba(0,0,0,0)'); mg.addColorStop(1,'rgba(3,6,14,.75)');
+    c.fillStyle = mg; c.fillRect(mx-MR,my-MR,2*MR,2*MR); c.restore();
+    line(c,ex+ER,ey,mx,my,'rgba(180,210,245,.18)',1.1);
+    txtH(c,(ex+mx)/2,(ey+my)/2-.10,'384 400 км · свет 1,3 с',.06,'rgba(210,228,245,.6)','center',500);
+    txtH(c,0,-1.15,'Земля и Луна в масштабе: между ними поместится 30 таких планет',.055,'rgba(205,225,250,.45)','center',500); } },
+
+/* ------------------------------------------------------------ СОЛНЦЕ --- */
+{ e:9, name:'Солнце', size:'⌀ 1 392 000 км', span:1,
+  note:'Звезда: шар из плазмы, удерживаемый собственной гравитацией. Гранулы кипят, протуберанцы выгибаются дугами.',
+  init(L){ const r = mkRnd(303);
+    L.gr = []; for(let i=0;i<72;i++){ const a = r()*TAU, d = Math.sqrt(r())*.9;
+      L.gr.push({ x:Math.cos(a)*d*.86, y:Math.sin(a)*d*.86, s:.028+r()*.045, ph:r()*TAU, hot:r()<.5 }); }
+    L.spots = [{ x:-.30, y:-.22, r:.075 }, { x:.26, y:.30, r:.052 }, { x:.46, y:-.34, r:.032 }];
+    L.prom = [{ a:-2.5, h:.26, ph:0 }, { a:-.6, h:.20, ph:1.7 }, { a:1.1, h:.30, ph:3.1 }, { a:2.6, h:.22, ph:4.4 }]; },
+  draw(g){ const c = g.c, t = g.t, L = g.L, R = .84;
+    glow(c,0,0,R*3.0,'#ffb347',.18,0);
+    glowR(c,0,0,R*.9,R*1.9,'#ff9a3c',.20,0);
+    const rot = t*.06;
+    for(let i=0;i<18;i++){ const a = rot+i*TAU/18;
+      const len = R*(1.12+.30*Math.abs(Math.sin(i*2.3+t*.5)));
+      c.save(); c.rotate(a);
+      poly(c,[[R*.99,-.035],[len,0],[R*.99,.035]]); fill(c, rgba('#ffcf7a',.16)); c.restore(); }
+    c.beginPath(); c.arc(0,0,R,0,TAU);
+    const sg = c.createRadialGradient(0,0,0,0,0,R);
+    sg.addColorStop(0,'#fffbe8'); sg.addColorStop(.45,'#ffe9a0'); sg.addColorStop(.78,'#ffb44d'); sg.addColorStop(1,'#f4741f');
+    c.fillStyle = sg; c.fill();
+    c.save(); c.beginPath(); c.arc(0,0,R,0,TAU); c.clip();
+    for(const gq of L.gr){ const k = .5+.5*Math.sin(t*2.2+gq.ph);
+      disc(c,gq.x,gq.y,gq.s*(1+.16*k), rgba(gq.hot ? '#ffd985' : '#ff9f45', .14+.16*k)); }
+    for(const sp of L.spots){ disc(c,sp.x,sp.y,sp.r*1.7,'rgba(190,80,20,.32)');
+      disc(c,sp.x,sp.y,sp.r,'rgba(90,40,10,.85)'); }
+    const lg = c.createRadialGradient(0,0,R*.55,0,0,R);
+    lg.addColorStop(0,'rgba(255,120,0,0)'); lg.addColorStop(1,'rgba(190,60,0,.5)');
+    c.fillStyle = lg; c.fillRect(-R,-R,2*R,2*R);
+    c.restore();
+    for(const p of L.prom){ const k = .55+.45*Math.sin(t*.9+p.ph);
+      const a0 = p.a-.10, a1 = p.a+.10;
+      const cx2 = Math.cos(p.a)*(R+p.h*k*1.5), cy2 = Math.sin(p.a)*(R+p.h*k*1.5);
+      c.beginPath(); c.moveTo(Math.cos(a0)*R, Math.sin(a0)*R);
+      c.quadraticCurveTo(cx2, cy2, Math.cos(a1)*R, Math.sin(a1)*R);
+      strk(c, rgba('#ff6b3d',.75), 4.6); strk(c, rgba('#ffd6a0',.85), 2.0);
+      for(let i=1;i<5;i++){ const u = i/5;
+        const ax = lerp(Math.cos(a0)*R,cx2,u), ay = lerp(Math.sin(a0)*R,cy2,u);
+        const bx = lerp(cx2,Math.cos(a1)*R,u), by = lerp(cy2,Math.sin(a1)*R,u);
+        disc(c, lerp(ax,bx,u), lerp(ay,by,u), .017, rgba('#ffb070',.7)); } }
+    const fp = (t*.11)%1;
+    if(fp < .18){ const u = fp/.18, k = Math.sin(Math.PI*u), fx = .26, fy = .30;
+      for(let i=0;i<9;i++){ const a = i*TAU/9+.3;
+        line(c,fx+Math.cos(a)*.06, fy+Math.sin(a)*.06, fx+Math.cos(a)*(.06+.5*k), fy+Math.sin(a)*(.06+.5*k),
+          rgba('#fff3c0',.7*(1-u)), 2.2); }
+      glow(c,fx,fy,.30,'#fff0b0',.5*(1-u),0); }
+    txtH(c,0,-1.30,'⌀ 1 392 000 км',.06,'rgba(240,225,200,.5)','center',500); } },
+
+/* -------------------------------------------- АСТРОНОМИЧЕСКАЯ ЕДИНИЦА -- */
+{ e:11, name:'Астрономическая единица', size:'149,6 млн км', span:1,
+  note:'Расстояние от Солнца до Земли. Свет проходит его за 8 минут 20 секунд — это видно по бегущему фотону.',
+  init(L){ const r = mkRnd(304);
+    L.stars = []; for(let i=0;i<170;i++) L.stars.push({ x:(r()*2-1)*1.5, y:(r()*2-1)*1.5, s:r()*.010+.003, ph:r()*TAU });
+    L.cont = randPoly(mkRnd(6), 9, .030, .45, -.006, .004, .85); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    for(const s of L.stars) disc(c,s.x,s.y,s.s, rgba('#cfe0ff', .16+.4*Math.max(0,Math.sin(t*.7+s.ph))));
+    const sx = -.62, ex = .62, ER = .055;
+    c.save(); c.beginPath(); c.arc(sx,0,ex-sx,0,TAU);
+    c.setLineDash([.04,.05]); strk(c,'rgba(170,205,245,.22)',1.3); c.setLineDash([]); c.restore();
+    glow(c,sx,0,.95,'#ffb347',.30,0);
+    for(let i=0;i<16;i++){ const a = t*.05+i*TAU/16;
+      c.save(); c.translate(sx,0); c.rotate(a);
+      poly(c,[[.20,-.012],[.20+.09+.05*Math.abs(Math.sin(i*2.1+t*.4)),0],[.20,.012]]);
+      fill(c, rgba('#ffcf7a',.22)); c.restore(); }
+    disc(c,sx,0,.20,'#ffe08a',rgba('#ff9a3c',.9),1.8);
+    glow(c,ex,0,.22,'#5fa8ff',.30,0);
+    c.save(); c.beginPath(); c.arc(ex,0,ER,0,TAU); c.clip();
+    disc(c,ex,0,ER,'#3f8fd8');
+    const off = (t*.05)%(2*ER);
+    for(const k of [-1,0,1]){ c.save(); c.translate(ex+k*2*ER-off,0);
+      smoothPath(c,L.cont); fill(c,'#4f8f56'); c.restore(); }
+    c.restore();
+    ring(c,ex,0,ER,'rgba(190,225,255,.6)',1.5);
+    // фотон
+    const q = (t*.10)%1;
+    for(let i=0;i<10;i++){ const u = q-i*.012; if(u < 0) continue;
+      disc(c, lerp(sx+.22, ex-ER, u), 0, .018*(1-i/12), rgba('#fff6d0', (1-i/10)*.7)); }
+    if(q > .96) glow(c,ex,0,.24,'#fff6d0',.4*(q-.96)/.04,0);
+    const dy = .36;
+    c.save(); c.setLineDash([.05,.04]);
+    line(c,sx,dy,ex,dy,'rgba(190,215,245,.5)',1.2); c.setLineDash([]); c.restore();
+    line(c,sx,dy-.05,sx,dy+.05,'rgba(190,215,245,.5)',1.2);
+    line(c,ex,dy-.05,ex,dy+.05,'rgba(190,215,245,.5)',1.2);
+    txtH(c,0,dy-.13,'1 а.е. = 149,6 млн км',.058,'rgba(215,230,250,.8)','center',500);
+    txtH(c,0,dy+.13,'свет идёт 8 мин 20 с',.048,'rgba(190,215,245,.55)','center',500);
+    txtH(c,0,-1.25,'Солнце и Земля в масштабе',.055,'rgba(205,225,250,.45)','center',500); } },
+
+/* --------------------------------------------------- СОЛНЕЧНАЯ СИСТЕМА - */
+{ e:13, name:'Солнечная система', size:'≈9·10¹² м', span:.92,
+  note:'Восемь планет, пояс астероидов, пояс Койпера и комета на вытянутой орбите. Нептун в 30 раз дальше Земли.',
+  init(L){ const r = mkRnd(305);
+    L.pl = [
+      { a:.17, R:.012, per:6,   col:'#b9b2a6', ph:0.0, name:'' },
+      { a:.24, R:.019, per:8,   col:'#e8d9a8', ph:1.1, name:'' },
+      { a:.32, R:.020, per:10,  col:'#5aa9e6', ph:2.4, name:'Земля', moon:true },
+      { a:.41, R:.015, per:13,  col:'#d9744a', ph:3.6, name:'' },
+      { a:.62, R:.050, per:20,  col:'#e0b07a', ph:4.7, name:'Юпитер', bands:true, moons:4 },
+      { a:.79, R:.043, per:26,  col:'#e8d8a0', ph:5.6, name:'Сатурн', ring:true },
+      { a:.92, R:.029, per:32,  col:'#9fd8e0', ph:1.9, name:'' },
+      { a:1.02,R:.027, per:38,  col:'#4f7fd8', ph:3.0, name:'' } ];
+    L.belt = []; for(let i=0;i<200;i++){ const a = r()*TAU, d = .475+(r()-.5)*.07;
+      L.belt.push({ x:Math.cos(a)*d, y:Math.sin(a)*d*.62, s:.004+r()*.006 }); }
+    L.kuiper = []; for(let i=0;i<280;i++){ const a = r()*TAU, d = 1.06+r()*.18;
+      L.kuiper.push({ x:Math.cos(a)*d, y:Math.sin(a)*d*.62, s:.003+r()*.006 }); }
+    L.stars = []; for(let i=0;i<120;i++) L.stars.push({ x:(r()*2-1)*1.6, y:(r()*2-1)*1.6, s:r()*.008+.002, ph:r()*TAU }); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    for(const s of L.stars) disc(c,s.x,s.y,s.s, rgba('#cfe0ff', .12+.35*Math.max(0,Math.sin(t*.6+s.ph))));
+    for(const b of L.kuiper) disc(c,b.x,b.y,b.s, rgba('#9fb6cf',.35));
+    glow(c,0,0,.30,'#ffb347',.45,0);
+    disc(c,0,0,.058,'#ffe9a0','rgba(255,160,80,.9)',1.6);
+    for(const p of L.pl){
+      c.save(); c.beginPath(); c.ellipse(0,0,p.a,p.a*.62,0,0,TAU);
+      strk(c,'rgba(150,185,225,.20)',1.1); c.restore();
+    }
+    for(const b of L.belt) disc(c,b.x,b.y,b.s, rgba('#c9bfa8',.5));
+    const ca = (t*.075)%TAU, cc = Math.cos(ca), sc = Math.sin(ca);
+    c.save(); c.beginPath(); c.ellipse(0,0,.88,.30,-.35,0,TAU);
+    c.setLineDash([.03,.04]); strk(c,'rgba(150,185,225,.20)',1.1); c.setLineDash([]); c.restore();
+    const cr = Math.cos(-.35), sr = Math.sin(-.35);
+    const cxp = cc*.88*cr - sc*.30*sr, cyp = cc*.88*sr + sc*.30*cr;
+    const cdist = Math.hypot(cxp,cyp)||1e-6, cux = cxp/cdist, cuy = cyp/cdist;
+    const tl = clamp(.30*(1-.55*cdist/.9),.02,.30);
+    for(let i=1;i<=9;i++){ const q = i/9;
+      disc(c, cxp+cux*q*tl, cyp+cuy*q*tl, .011*(1-q*.6), rgba('#bfe8ff', .32*(1-q))); }
+    disc(c,cxp,cyp,.014,'#eaf6ff','#8fc8ff',1.2);
+    for(const p of L.pl){
+      const a = p.ph+t*TAU/p.per, x = Math.cos(a)*p.a, y = Math.sin(a)*p.a*.62;
+      if(p.ring){ c.save(); c.translate(x,y); c.scale(1,.42);
+        c.beginPath(); c.ellipse(0,0,p.R*1.9,p.R*1.9,0,0,TAU); strk(c,'rgba(240,225,180,.7)',2.2); c.restore(); }
+      if(p.moons) for(let i=0;i<p.moons;i++){ const ma = a*2.4+i*TAU/p.moons;
+        disc(c, x+Math.cos(ma)*p.R*1.8, y+Math.sin(ma)*p.R*1.8*.7, .006, '#e8e4d8'); }
+      disc(c,x,y,p.R,p.col,'rgba(8,12,20,.6)',1.1);
+      if(p.bands){ line(c,x-p.R*.7,y-p.R*.25,x+p.R*.7,y-p.R*.25,'rgba(150,100,60,.55)',1.4);
+        line(c,x-p.R*.6,y+p.R*.3,x+p.R*.6,y+p.R*.3,'rgba(150,100,60,.45)',1.2); }
+      if(p.moon){ const ma = a*4.1;
+        disc(c, x+Math.cos(ma)*.016, y+Math.sin(ma)*.011, .004, '#cfcabd'); }
+      if(p.name) txtH(c, x, y-p.R-.05, p.name, .028,'rgba(225,238,255,.85)','center',500);
+    }
+    txtH(c,0,-1.24,'8 планет · пояс астероидов · пояс Койпера · комета',.05,'rgba(205,225,250,.45)','center',500); } },
+
+/* ------------------------------------------------------- ОБЛАКО ООРТА -- */
+{ e:15, name:'Облако Оорта', size:'≈10¹⁵ м · 0,1 св. года', span:1,
+  note:'Ледяная сфера из миллиардов кометных ядер на краю Солнечной системы. Отсюда Солнце — просто яркая звезда.',
+  init(L){ const r = mkRnd(306);
+    L.dots = []; for(let i=0;i<900;i++){ const a = r()*TAU, d = .28+Math.sqrt(r())*.74;
+      L.dots.push({ x:Math.cos(a)*d, y:Math.sin(a)*d*.96, s:.0035+r()*.008, al:.12+r()*.55, ph:r()*TAU }); }
+    L.comets = [{ sp:.020, ph:0, a:.60, b:.52, rot:0 }, { sp:.032, ph:.4, a:.72, b:.30, rot:1.1 }]; },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    glowR(c,0,0,.20,1.06,'#4f6fae',.18,0);
+    ring(c,0,0,1.02,'rgba(150,185,225,.22)',1.3);
+    c.save(); c.beginPath(); c.arc(0,0,1.06,0,TAU); c.clip();
+    for(const d of L.dots) disc(c,d.x,d.y,d.s, rgba('#cfe0ff', d.al*(.55+.45*Math.sin(t*.8+d.ph))));
+    c.restore();
+    for(const k of L.comets){
+      const a = (k.ph+t*k.sp)%TAU;
+      const lx = Math.cos(a)*k.a, ly = Math.sin(a)*k.b;
+      const cr = Math.cos(k.rot), sr = Math.sin(k.rot);
+      const x = lx*cr-ly*sr, y = lx*sr+ly*cr;
+      const dist = Math.hypot(x,y)||1e-6, ux = x/dist, uy = y/dist;
+      const tl = clamp(.28*(1-.5*dist/.75),.02,.28);
+      for(let i=1;i<=8;i++){ const q = i/8;
+        disc(c, x+ux*q*tl, y+uy*q*tl, .008*(1-q*.6), rgba('#cfe8ff',.30*(1-q))); }
+      disc(c,x,y,.009,'#ffffff', rgba('#a8d8ff',.8),1);
+    }
+    glow(c,0,0,.20,'#ffd98a',.50,0);
+    disc(c,0,0,.020,'#fffbe8');
+    sparkle(c,0,0,.030,'#fff6d8',.85,true);
+    txtH(c,.10,.19,'Солнце',.045,'rgba(255,235,190,.65)','left',500);
+    txtH(c,0,-1.16,'Облако Оорта · 0,03–3 св. года',.055,'rgba(205,225,250,.5)','center',500); } },
+
+/* ------------------------------------------------------ БЛИЖАЙШИЕ ЗВЁЗДЫ */
+{ e:17, name:'Ближайшие звёзды', size:'≈10 св. лет', span:1,
+  note:'Окрестности Солнца: Альфа Центавра, Проксима, звезда Барнарда, Сириус. Один световой год — 9,46·10¹⁵ м.',
+  init(L){ const r = mkRnd(307);
+    L.st = [
+      { x:-.40, y:.35, s:.052, c:'#ffd98a', n:'Солнце', d:'мы здесь' },
+      { x:-.02, y:.30, s:.070, c:'#fff0c0', n:'α Центавра A', d:'4,4 св. года' },
+      { x:.09, y:.40, s:.046, c:'#ffcf8a', n:'', d:'' },
+      { x:.06, y:.20, s:.028, c:'#ff8f7a', n:'Проксима', d:'4,24' },
+      { x:-.62, y:-.28, s:.038, c:'#ff9a80', n:'Барнарда', d:'6,0' },
+      { x:.42, y:.75, s:.098, c:'#dff0ff', n:'Сириус', d:'8,6' },
+      { x:.30, y:-.42, s:.056, c:'#fff4d8', n:'Процион', d:'11,5' },
+      { x:-.75, y:-.62, s:.044, c:'#ffe0a0', n:'τ Кита', d:'11,9' },
+      { x:.40, y:-.75, s:.040, c:'#ffd28a', n:'ε Эридана', d:'10,5' },
+      { x:-1.05, y:.10, s:.034, c:'#ffb0a0', n:'', d:'' } ];
+    L.field = []; for(let i=0;i<240;i++) L.field.push({ x:(r()*2-1)*1.5, y:(r()*2-1)*1.5,
+      s:.0025+r()*.007, al:.08+r()*.38, ph:r()*TAU }); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    for(const f of L.field) disc(c,f.x,f.y,f.s, rgba('#cfe0ff', f.al*(.55+.45*Math.sin(t*.5+f.ph))));
+    c.save(); c.translate(-.40 + .40, .35 - .30); c.restore();
+    c.save(); c.setLineDash([.02,.02]);
+    line(c,-.40,.35,-.02,.30,'rgba(180,210,245,.30)',1.1); c.setLineDash([]); c.restore();
+    for(const s of L.st){ const tw = .7+.3*Math.sin(t*.9+s.x*7);
+      glow(c,s.x,s.y,s.s*3.4,s.c,.26*tw,0);
+      sparkle(c,s.x,s.y,s.s*.5,s.c,.85*tw,true); }
+    for(const s of L.st) if(s.n){
+      txtH(c, s.x+s.s*2.8, s.y-s.s*2.4, s.n, .042,'rgba(228,240,255,.9)','left',600);
+      if(s.d) txtH(c, s.x+s.s*2.8, s.y-s.s*2.4+.052, s.d, .034,'rgba(190,215,245,.55)','left',500); }
+    // масштабная линейка: 1 световой год
+    line(c,-1.02,-1.16,-.92,-1.16,'rgba(210,230,255,.6)',1.6);
+    line(c,-1.02,-1.19,-1.02,-1.13,'rgba(210,230,255,.6)',1.3);
+    line(c,-.92,-1.19,-.92,-1.13,'rgba(210,230,255,.6)',1.3);
+    txtH(c,-.97,-1.27,'1 св. год',.036,'rgba(205,225,250,.6)','center',500); } },
+
+/* ------------------------------------------------------ ЗВЁЗДНЫЙ РУКАВ */
+{ e:19, name:'Звёздный рукав', size:'≈1000 св. лет', span:1,
+  note:'Тысяча световых лет: мы внутри рукава Галактики. Рядом — рассеянное скопление и красная туманность.',
+  init(L){ const r = mkRnd(308);
+    L.stars = []; for(let i=0;i<900;i++){ const a = r()*TAU, d = Math.sqrt(r())*1.5;
+      L.stars.push({ x:Math.cos(a)*d, y:Math.sin(a)*d, s:.0015+Math.pow(r(),3)*.010, al:.12+r()*.75,
+        ph:r()*TAU, c: r()<.12 ? '#ffd0b0' : (r()<.32 ? '#cfe0ff' : '#ffffff') }); }
+    L.cl = []; for(let i=0;i<11;i++){ const a = r()*TAU, d = Math.pow(r(),.6)*.30;
+      L.cl.push({ x:Math.cos(a)*d-.12, y:Math.sin(a)*d-.02, s:.014+r()*.024, ph:r()*TAU }); }
+    L.nbP = randPoly(mkRnd(31), 14, .34, .40, 0, 0, .85); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    c.save(); c.translate(.62,.22);
+    glow(c,0,0,.56,'#c2456a',.22+.05*Math.sin(t*.6),0);
+    smoothPath(c,L.nbP); fill(c, rgba('#8f2a52',.34));
+    c.save(); c.scale(.74,.74); smoothPath(c,L.nbP); fill(c, rgba('#c8406c',.26)); c.restore();
+    c.save(); c.scale(.44,.44); smoothPath(c,L.nbP); fill(c, rgba('#ff9ec0',.18)); c.restore();
+    for(let i=0;i<6;i++){ const a = i/6*TAU+.4;
+      c.beginPath(); c.moveTo(Math.cos(a)*.34, Math.sin(a)*.34);
+      c.quadraticCurveTo(Math.cos(a+.55)*.19, Math.sin(a+.55)*.19, Math.cos(a+1.15)*.05, Math.sin(a+1.15)*.05);
+      strk(c,'rgba(12,6,16,.40)',3.4+i*.5); }
+    c.restore();
+    for(const s of L.stars) disc(c,s.x,s.y,s.s, rgba(s.c, s.al*(.65+.35*Math.sin(t*.7+s.ph))));
+    glow(c,-.12,-.02,.44,'#9fd0ff',.13,0);
+    for(const s of L.cl){ const tw = .7+.3*Math.sin(t*1.1+s.ph);
+      glow(c,s.x,s.y,s.s*4,'#cfe4ff',.30*tw,0);
+      sparkle(c,s.x,s.y,s.s*.55,'#eaf4ff',.9*tw,true); }
+    txtH(c,0,-1.28,'≈1000 св. лет · скопление и туманность',.05,'rgba(205,225,250,.5)','center',500); } },
+
+/* ------------------------------------------------------- МЛЕЧНЫЙ ПУТЬ - */
+{ e:21, name:'Млечный Путь', size:'⌀ ~100 000 св. лет', span:.95,
+  note:'Наша Галактика: спиральные рукава, балдж и пылевые полосы. Солнце — в 26 000 св. лет от центра, в рукаве Ориона.',
+  init(L){ const r = mkRnd(309);
+    L.arms = []; for(let k=0;k<4;k++){ const pts = [];
+      for(let i=0;i<=110;i++){ const q = i/110, th = q*3.5, rad = .085*Math.exp(.62*th);
+        pts.push({ x:Math.cos(th+k*TAU/4)*rad, y:Math.sin(th+k*TAU/4)*rad*.9, q }); }
+      L.arms.push(pts); }
+    L.knots = []; for(const arm of L.arms) for(let i=0;i<26;i++){
+      const p = arm[Math.floor(Math.pow(r(),.85)*(arm.length-1))];
+      L.knots.push({ x:p.x, y:p.y, s:.005+r()*.013, ph:r()*TAU, c: r()<.4 ? '#ff9ec0' : (r()<.7 ? '#bfe0ff' : '#fff0c8') }); }
+    L.halo = []; for(let i=0;i<230;i++){ const a = r()*TAU, d = Math.pow(r(),.5)*1.45;
+      L.halo.push({ x:Math.cos(a)*d, y:Math.sin(a)*d*.9, s:.0025+r()*.007, al:.10+r()*.5, ph:r()*TAU }); }
+    L.glob = []; for(let i=0;i<16;i++){ const a = r()*TAU, d = .8+r()*.65;
+      L.glob.push({ x:Math.cos(a)*d, y:Math.sin(a)*d*.9, s:.02+r()*.03 }); } },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    c.save(); c.rotate(t*.03);
+    for(const s of L.halo) disc(c,s.x,s.y,s.s, rgba('#dce8ff', s.al*(.6+.4*Math.sin(t*.6+s.ph))));
+    for(const gl of L.glob){ glow(c,gl.x,gl.y,gl.s*2.4,'#ffe6c0',.20,0);
+      disc(c,gl.x,gl.y,gl.s*.28,'rgba(255,240,215,.85)'); }
+    c.save(); c.scale(1,.9); c.beginPath(); c.arc(0,0,1.05,0,TAU);
+    const dg = c.createRadialGradient(0,0,0,0,0,1.05);
+    dg.addColorStop(0,'rgba(255,232,180,.30)'); dg.addColorStop(.30,'rgba(196,214,255,.15)');
+    dg.addColorStop(.65,'rgba(150,180,255,.07)'); dg.addColorStop(1,'rgba(90,120,220,0)');
+    c.fillStyle = dg; c.fill(); c.restore();
+    for(const arm of L.arms){
+      const Lp = [], Rp = [];
+      for(const p of arm){ const w = .018+.058*p.q;
+        Lp.push([p.x-w*.5, p.y-w*.45]); Rp.push([p.x+w*.5, p.y+w*.45]); }
+      poly(c, Lp.concat(Rp.reverse()));
+      const ag = c.createRadialGradient(0,0,.05,0,0,.9);
+      ag.addColorStop(0,'rgba(255,246,220,.50)'); ag.addColorStop(.35,'rgba(186,214,255,.36)');
+      ag.addColorStop(1,'rgba(120,160,255,.05)');
+      c.fillStyle = ag; c.fill();
+    }
+    for(const arm of L.arms){
+      const pts = arm.map(p => { const ang = Math.atan2(p.y,p.x), w = .010+.026*p.q;
+        return [p.x - Math.sin(ang)*w, p.y + Math.cos(ang)*w*.9]; });
+      poly(c,pts,true); strk(c,'rgba(10,8,22,.30)',5);
+    }
+    c.save(); c.scale(1,.8); glow(c,0,0,.30,'#ffe0a0',.5,0); c.restore();
+    glow(c,0,0,.10,'#fff8e8',.9,0);
+    for(const k of L.knots){ const tw = .55+.45*Math.sin(t*.8+k.ph);
+      disc(c,k.x,k.y,k.s*(.8+.4*tw), rgba(k.c,.35+.45*tw)); }
+    c.restore();
+    const sx = .52, sy = -.30;
+    disc(c,sx,sy,.011,'#fff6d8', rgba('#ffd98a',.9),1);
+    ring(c,sx,sy,.055,'rgba(255,230,170,.35)',1);
+    txtH(c,sx+.07,sy+.055,'Солнце',.034,'rgba(255,235,190,.8)','left',600);
+    txtH(c,0,-1.30,'Млечный Путь · ⌀ ~100 000 св. лет',.05,'rgba(210,228,250,.5)','center',500); } },
+
+/* ------------------------------------------------------ МЕСТНАЯ ГРУППА */
+{ e:22.4, name:'Местная группа', size:'≈2,5 млн св. лет', span:.95,
+  note:'Млечный Путь, Андромеда и Треугольник плюс десятки карликовых галактик. Андромеда приближается к нам.',
+  init(L){ const r = mkRnd(310);
+    L.dwarfs = []; for(let i=0;i<12;i++){ const a = r()*TAU, d = .45+Math.sqrt(r())*.95;
+      L.dwarfs.push({ x:Math.cos(a)*d, y:Math.sin(a)*d*.8, R:.03+r()*.05, ph:r()*TAU,
+        sp:(r()-.5)*.02, a0:a, d0:d }); }
+    L.field = []; for(let i=0;i<260;i++) L.field.push({ x:(r()*2-1)*1.55, y:(r()*2-1)*1.55,
+      s:.0025+r()*.005, al:.08+r()*.4, ph:r()*TAU }); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    for(const f of L.field) disc(c,f.x,f.y,f.s, rgba('#dce8ff', f.al*(.6+.4*Math.sin(t*.6+f.ph))));
+    for(let i=0;i<80;i++){ const q = i/80;
+      disc(c, lerp(-.60,.56,q), lerp(-.22,.26,q)+.05*Math.sin(q*Math.PI*1.4), .0035, rgba('#cfe0ff',.22)); }
+    c.save(); c.translate(-.62,-.22); c.rotate(-.4); c.scale(1,.80);
+    galaxy(c,.30,t*.05,'#cfe0ff'); c.restore();
+    c.save(); c.translate(.58,.26); c.rotate(-.55); c.scale(1,.40);
+    galaxy(c,.46,t*.04,'#ffe0c0'); c.restore();
+    c.save(); c.translate(.44,-.74); c.rotate(.4); c.scale(1,.50);
+    galaxy(c,.16,t*.06,'#cfe8ff'); c.restore();
+    for(const d of L.dwarfs){
+      const a = d.a0+t*d.sp, x = Math.cos(a)*d.d0, y = Math.sin(a)*d.d0*.8;
+      glow(c,x,y,d.R*2.2,'#bfd0f0',.13,0);
+      disc(c,x,y,d.R*.85,'rgba(150,175,225,.28)');
+      for(let i=0;i<6;i++){ const q = (i*2.3+d.ph*7)%1;
+        disc(c, x+(q-.5)*d.R*1.5, y+(Math.sin(q*9+d.ph)-.5)*d.R*1.1, .005,
+          rgba('#e8f0ff',.45)); } }
+    txtH(c,-.62,-.60,'Млечный Путь',.042,'rgba(215,235,255,.85)','center',600);
+    txtH(c,.58,.72,'Андромеда (M31)',.042,'rgba(255,235,215,.85)','center',600);
+    txtH(c,.44,-.92,'Треугольник',.036,'rgba(215,235,255,.7)','center',500);
+    txtH(c,0,-1.34,'2,5 млн св. лет между нами и Андромедой',.05,'rgba(205,225,250,.5)','center',500); } },
+
+/* ------------------------------------------------------------ ЛАНИАКЕЯ */
+{ e:23.6, name:'Сверхскопление Ланиакея', size:'≈500 млн св. лет', span:1,
+  note:'Наш сверхкластер: сотни тысяч галактик, текущих к Великому аттрактору. Струйки — потоки галактик.',
+  init(L){ const r = mkRnd(311);
+    L.cl = []; for(let i=0;i<24;i++){ const a = r()*TAU, d = Math.pow(r(),.72)*1.15;
+      L.cl.push({ x:Math.cos(a)*d, y:Math.sin(a)*d*.85, R:.05+r()*.09, ph:r()*TAU,
+        col: r()<.28 ? '#ffd0a0' : '#cfe0ff',
+        sub: Array.from({ length:8+Math.floor(r()*8) }, () => ({ a:r()*TAU, d:Math.sqrt(r()), s:.004+r()*.008 })) }); }
+    L.field = []; for(let i=0;i<320;i++) L.field.push({ x:(r()*2-1)*1.5, y:(r()*2-1)*1.5,
+      s:.002+r()*.004, al:.06+r()*.30, ph:r()*TAU }); },
+  draw(g){ const c = g.c, t = g.t, L = g.L, att = { x:.60, y:.28 };
+    for(const f of L.field) disc(c,f.x,f.y,f.s, rgba('#dce8ff', f.al*.7));
+    for(let i=0;i<44;i++){ const a = i/44*TAU, d = .34+(i%7)*.15;
+      const x0 = Math.cos(a)*d*1.05, y0 = Math.sin(a)*d*.82;
+      const u = ((t*.055+i*.11)%1);
+      const x = lerp(x0,att.x,u*.85), y = lerp(y0,att.y,u*.85);
+      if(u > .96) continue;
+      disc(c,x,y,.006, rgba('#9fd0ff', .45*(1-u*.6)));
+      disc(c, lerp(x0,att.x,Math.max(0,u-.03)*.85), lerp(y0,att.y,Math.max(0,u-.03)*.85), .0035, rgba('#9fd0ff',.22)); }
+    for(const cl of L.cl){
+      glow(c,cl.x,cl.y,cl.R*2.1,cl.col,.16,0);
+      for(const s of cl.sub) disc(c, cl.x+Math.cos(s.a)*s.d*cl.R, cl.y+Math.sin(s.a)*s.d*cl.R*.9,
+        s.s, rgba(cl.col, .35+.5*Math.abs(Math.sin(t*.6+s.a*3))));
+      disc(c,cl.x,cl.y,.010,'rgba(255,250,235,.9)'); }
+    glow(c,att.x,att.y,.32,'#ffb066',.32+.06*Math.sin(t*.7),0);
+    ring(c,att.x,att.y,.13,'rgba(255,200,140,.5)',1.6);
+    ring(c,att.x,att.y,.21,'rgba(255,200,140,.20)',1.2);
+    txtH(c,att.x+.15,att.y+.17,'Великий аттрактор',.04,'rgba(255,220,175,.85)','left',600);
+    txtH(c,0,-1.30,'≈500 млн св. лет · поток галактик к аттрактору',.05,'rgba(205,225,250,.5)','center',500); } },
+
+/* ------------------------------------------------------ КОСМИЧЕСКАЯ СЕТЬ */
+{ e:25, name:'Космическая паутина', size:'≈3·10⁸ св. лет', span:1,
+  note:'Крупнейшая структура мира: нити из скоплений галактик между пустотами. В войдах галактик почти нет.',
+  init(L){ const r = mkRnd(312);
+    L.nodes = []; for(let i=0;i<17;i++){ const a = r()*TAU, d = Math.pow(r(),.65)*1.2;
+      L.nodes.push({ x:Math.cos(a)*d, y:Math.sin(a)*d*.88, R:.055+r()*.10, ph:r()*TAU,
+        blob: randPoly(r,12,.055+r()*.10,.38,0,0,.9),
+        sub: Array.from({ length:12 }, () => ({ a:r()*TAU, d:Math.sqrt(r()), s:.004+r()*.008 })) }); }
+    L.links = [];
+    for(let i=0;i<L.nodes.length;i++){
+      const near = L.nodes.map((n,j) => ({ j, d:Math.hypot(n.x-L.nodes[i].x, n.y-L.nodes[i].y) }))
+        .filter(o => o.j !== i).sort((a,b) => a.d-b.d).slice(0,2);
+      for(const o of near) if(o.j > i) L.links.push([i,o.j]); } },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    const br = 1+.020*Math.sin(t*.32);
+    c.save(); c.scale(br,br);
+    for(const lk of L.links){ const A = L.nodes[lk[0]], B = L.nodes[lk[1]];
+      const mx = (A.x+B.x)/2+(A.y-B.y)*.20, my = (A.y+B.y)/2+(B.x-A.x)*.20;
+      c.beginPath(); c.moveTo(A.x,A.y); c.quadraticCurveTo(mx,my,B.x,B.y);
+      strk(c,'rgba(120,160,230,.15)',7);
+      c.beginPath(); c.moveTo(A.x,A.y); c.quadraticCurveTo(mx,my,B.x,B.y);
+      strk(c,'rgba(180,210,255,.20)',2.4);
+      for(let i=1;i<16;i++){ const q = i/16;
+        const ax = lerp(A.x,mx,q), ay = lerp(A.y,my,q);
+        const bx = lerp(mx,B.x,q), by = lerp(my,B.y,q);
+        disc(c, lerp(ax,bx,q), lerp(ay,by,q), .0045,
+          rgba('#cfe0ff', .22+.35*Math.abs(Math.sin(t*.5+i+q*4)))); } }
+    for(const n of L.nodes){
+      glow(c,n.x,n.y,n.R*2.3,'#9fc0ff',.18,0);
+      c.save(); c.translate(n.x,n.y); smoothPath(c,n.blob); fill(c,'rgba(58,79,128,.35)'); c.restore();
+      for(const s of n.sub) disc(c, n.x+Math.cos(s.a)*s.d*n.R, n.y+Math.sin(s.a)*s.d*n.R*.9,
+        s.s, rgba('#e8f0ff', .35+.5*Math.abs(Math.sin(t*.6+s.a*3))));
+      disc(c,n.x,n.y,.011, rgba('#fffaf0',.8)); }
+    c.restore();
+    txtH(c,0,-1.32,'нити · скопления · пустоты (войды)   ·   ≈300 млн св. лет',.05,'rgba(205,225,250,.5)','center',500); } },
+
+/* ------------------------------------------------ НАБЛЮДАЕМАЯ ВСЕЛЕННАЯ */
+{ e:26.9, name:'Наблюдаемая Вселенная', size:'⌀ 93 млрд св. лет', span:1,
+  note:'Всё, что мы можем увидеть: около двух триллионов галактик. На краю — реликтовое излучение, след Большого взрыва.',
+  init(L){ const r = mkRnd(313);
+    L.tex = mkTex(620, (cx,size) => {
+      const R = size/2-2, cc = size/2, r2 = mkRnd(777);
+      const bg = cx.createRadialGradient(cc,cc,0,cc,cc,R);
+      bg.addColorStop(0,'#2a3f7a'); bg.addColorStop(.55,'#1d2a55'); bg.addColorStop(1,'#0d1330');
+      cx.fillStyle = bg; cx.beginPath(); cx.arc(cc,cc,R,0,TAU); cx.fill();
+      cx.save(); cx.beginPath(); cx.arc(cc,cc,R,0,TAU); cx.clip();
+      const cols = ['#4a6fd4','#7a6fd4','#3a86c8','#c88a5a','#c85a6a','#5ac8b0'];
+      for(let i=0;i<540;i++){ const a = r2()*TAU, d = Math.sqrt(r2())*R;
+        const x = cc+Math.cos(a)*d, y = cc+Math.sin(a)*d, rr = size*(.012+Math.pow(r2(),2)*.055);
+        const g2 = cx.createRadialGradient(x,y,0,x,y,rr), col = cols[Math.floor(r2()*cols.length)];
+        g2.addColorStop(0, rgba(col,.30)); g2.addColorStop(1, rgba(col,0));
+        cx.fillStyle = g2; cx.beginPath(); cx.arc(x,y,rr,0,TAU); cx.fill(); }
+      cx.globalAlpha = .38;
+      for(let i=0;i<46;i++){ const a0 = r2()*TAU, d0 = Math.sqrt(r2())*R*.95;
+        const a1 = a0+(r2()-.5)*1.3, d1 = Math.sqrt(r2())*R*.95;
+        const am = (a0+a1)/2, dm = (d0+d1)/2*1.05;
+        cx.beginPath(); cx.moveTo(cc+Math.cos(a0)*d0, cc+Math.sin(a0)*d0);
+        cx.quadraticCurveTo(cc+Math.cos(am)*dm, cc+Math.sin(am)*dm, cc+Math.cos(a1)*d1, cc+Math.sin(a1)*d1);
+        cx.strokeStyle = r2() < .5 ? 'rgba(190,215,255,.5)' : 'rgba(255,210,170,.42)';
+        cx.lineWidth = .8+r2()*1.8; cx.stroke(); }
+      cx.globalAlpha = 1; cx.restore(); });
+    L.stars = []; for(let i=0;i<140;i++) L.stars.push({ x:(r()*2-1)*1.6, y:(r()*2-1)*1.6,
+      s:.002+r()*.005, ph:r()*TAU }); },
+  draw(g){ const c = g.c, t = g.t, L = g.L;
+    for(const s of L.stars) disc(c,s.x,s.y,s.s, rgba('#cfe0ff', .1+.35*Math.max(0,Math.sin(t*.5+s.ph))));
+    const R = .92*(1+.004*Math.sin(t*.4));
+    glow(c,0,0,R*2.1,'#4a6fd4',.18,0);
+    glowR(c,0,0,R*.5,R*1.5,'#3a5cb0',.14,0);
+    c.save(); c.beginPath(); c.arc(0,0,R,0,TAU); c.clip();
+    c.rotate(t*.012); c.drawImage(L.tex, -R, -R, 2*R, 2*R); c.restore();
+    glowR(c,0,0,R*.96,R*1.12,'#9fc0ff',.30,0);
+    ring(c,0,0,R,'rgba(180,210,255,.55)',2);
+    const pl = .6+.4*Math.sin(t*1.5);
+    glow(c,0,0,.05,'#fff6d8',.45*pl,0);
+    disc(c,0,0,.011,'#fffdf0');
+    ring(c,0,0,.034, rgba('#fff0c0',.5*pl),1.3);
+    txtH(c,.055,.036,'мы здесь',.036,'rgba(255,245,215,.9)','left',600);
+    c.save(); c.setLineDash([.04,.04]);
+    line(c,0,0,R*Math.cos(-2.3),R*Math.sin(-2.3),'rgba(200,225,255,.45)',1.2); c.setLineDash([]); c.restore();
+    txtH(c,-.58,-.70,'46,5 млрд св. лет',.05,'rgba(210,230,255,.8)','center',500);
+    txtH(c,0,-1.30,'горизонт наблюдаемой Вселенной · 13,8 млрд лет',.05,'rgba(205,225,250,.5)','center',500); } },
+
+/* <<<УРОВНИ>>> */
+];
+
+/* =============================== ДВИЖОК ================================== */
+const canvas = document.getElementById('scene');
+const ctx = canvas.getContext('2d');
+let W = 1, H = 1, MIN = 1, DPR = 1;
+const cam = { z:0, x:0, y:0, tz:0, tx:0, ty:0 };
+let simT = 0, autoOn = false, autoDir = -1;
+const MINZ = -19.6, MAXZ = 28.2;
+const mpp = z => Math.pow(10,z)/H;
+const rate = z => clamp(Math.pow(10, .05*z), .08, 10);
+
+LEVELS.sort((a,b) => a.e-b.e);
+for(const L of LEVELS) if(L.init) L.init(L);
+
+const BG = [[-20,[9,5,20]],[-15,[11,7,24]],[-11,[8,11,28]],[-6,[7,14,22]],[-1,[10,12,18]],
+  [2,[8,10,17]],[6,[6,9,19]],[10,[4,6,16]],[15,[3,4,12]],[21,[2,3,9]],[29,[1,2,7]]];
+function bgColor(z){
+  if(z <= BG[0][0]) return 'rgb('+BG[0][1].join(',')+')';
+  for(let i=0;i<BG.length-1;i++) if(z <= BG[i+1][0]){
+    const u = (z-BG[i][0])/(BG[i+1][0]-BG[i][0]);
+    return 'rgb('+BG[i][1].map((v,k) => Math.round(lerp(v,BG[i+1][1][k],u))).join(',')+')'; }
+  return 'rgb('+BG[BG.length-1][1].join(',')+')';
+}
+
+/* какие уровни видны при данном зуме и с какой прозрачностью */
+function visible(z){
+  const n = LEVELS.length;
+  if(z <= LEVELS[0].e) return [[LEVELS[0],1]];
+  if(z >= LEVELS[n-1].e) return [[LEVELS[n-1],1]];
+  let i = 0; while(i < n-2 && LEVELS[i+1].e <= z) i++;
+  const a = LEVELS[i], b = LEVELS[i+1];
+  const f = (z-a.e)/(b.e-a.e), u = sstep((f-.28)/.44);
+  const out = [];
+  if(u > .004) out.push([b,u]);            // крупный объект — снизу
+  if(1-u > .004) out.push([a,1-u]);        // мелкий, «проявляющийся» — сверху
+  return out;
+}
+
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = Math.max(320, window.innerWidth); H = Math.max(320, window.innerHeight);
+  canvas.width = Math.round(W*DPR); canvas.height = Math.round(H*DPR);
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  MIN = Math.min(W,H);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  buildRail();
+}
+
+function render(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = bgColor(cam.z);
+  ctx.fillRect(0,0,W,H);
+  const m = mpp(cam.z), ox = W/2-cam.x/m, oy = H/2-cam.y/m;
+  for(const [lvl,al] of visible(cam.z)){
+    const d = clamp(lvl.e-cam.z, -3.6, 3.6);
+    const S = .30*MIN*(lvl.span||1)*Math.pow(10,d);
+    if(!(S > 1e-9) || !isFinite(S)) continue;
+    ctx.save();
+    ctx.globalAlpha = al;
+    ctx.translate(ox,oy); ctx.scale(S,S);
+    CURS = S;
+    try { lvl.draw({ c:ctx, S, t:simT, d, MIN, W, H, L:lvl }); }
+    catch(err){ if(!lvl._bad){ lvl._bad = 1; console.warn('уровень '+lvl.name, err); } }
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  const vg = ctx.createRadialGradient(W/2,H/2,MIN*.30,W/2,H/2,MIN*.98);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.5)');
+  ctx.fillStyle = vg; ctx.fillRect(0,0,W,H);
+}
+
+function clampCam(){
+  const m = mpp(cam.z), hx = .5*W*m*.72, hy = .5*H*m*.72;
+  cam.x = clamp(cam.x,-hx,hx); cam.y = clamp(cam.y,-hy,hy);
+  cam.tx = clamp(cam.tx,-hx,hx); cam.ty = clamp(cam.ty,-hy,hy);
+}
+
+let last = 0;
+function frame(now){
+  if(!last) last = now;
+  const dt = Math.min(.05, Math.max(0,(now-last)/1000)); last = now;
+  if(autoOn){
+    cam.tz = clamp(cam.tz+autoDir*1.3*dt, MINZ+.5, MAXZ-.5);
+    if(cam.tz <= MINZ+.51) autoDir = 1;
+    if(cam.tz >= MAXZ-.51) autoDir = -1;
+  }
+  const k = 1-Math.exp(-dt*6.5);
+  cam.z += clamp((cam.tz-cam.z)*k, -32*dt, 32*dt);
+  cam.x += (cam.tx-cam.x)*k; cam.y += (cam.ty-cam.y)*k;
+  clampCam();
+  simT += dt*rate(cam.z);
+  render();
+  hud();
+  requestAnimationFrame(frame);
+}
+
+/* ------------------------------- интерфейс -------------------------------- */
+const $ = id => document.getElementById(id);
+const elTitle = $('title'), elName = $('lName'), elSize = $('lSize'), elNote = $('lNote'), elExp = $('lExp');
+const elFrame = $('vFrame'), elRate = $('vRate'), elBar = $('ratebarI'), elRail = $('rail'), elProg = $('progI');
+let curLvl = null, lastFrameTxt = '', lastRateTxt = '';
+const rows = [];
+
+function buildRail(){
+  if(rows.length) return;
+  LEVELS.forEach((L,idx) => {
+    const d = document.createElement('div');
+    d.className = 'ri';
+    d.innerHTML = '<span class="n"></span><span class="e">10'+sup(L.e.toFixed(L.e%1?1:0))+'</span>';
+    d.querySelector('.n').textContent = L.name;
+    d.addEventListener('click', () => { goLevel(idx); });
+    elRail.appendChild(d); rows.push(d);
+  });
+}
+function nearest(z){ let best = LEVELS[0], bd = 1e9;
+  for(const L of LEVELS){ const d = Math.abs(L.e-z); if(d < bd){ bd = d; best = L; } }
+  return best; }
+
+function hud(){
+  const L = nearest(cam.z);
+  if(L !== curLvl){
+    curLvl = L;
+    elExp.textContent = '10'+sup(L.e.toFixed(L.e%1?1:0))+' м';
+    elName.textContent = L.name;
+    elSize.textContent = L.size;
+    elNote.textContent = L.note;
+    elTitle.classList.remove('flash'); void elTitle.offsetWidth; elTitle.classList.add('flash');
+    const idx = LEVELS.indexOf(L);
+    rows.forEach((r,i) => r.classList.toggle('on', i === idx));
+    const r = rows[idx];
+    if(r){ const want = r.offsetTop-elRail.clientHeight/2+r.offsetHeight/2;
+      elRail.scrollTo({ top:clamp(want,0,elRail.scrollHeight-elRail.clientHeight), behavior:'smooth' }); }
+  }
+  const ft = friendly(Math.pow(10,cam.z));
+  if(ft !== lastFrameTxt){ lastFrameTxt = ft; elFrame.textContent = '≈ '+ft; }
+  const rr = rate(cam.z), rt = '×'+num(rr, rr<1?3:2);
+  if(rt !== lastRateTxt){ lastRateTxt = rt; elRate.textContent = rt;
+    const lo = Math.log10(.08), hi = Math.log10(10);
+    elBar.style.width = (100*(Math.log10(rr)-lo)/(hi-lo)).toFixed(1)+'%'; }
+  elProg.style.width = (100*clamp((MAXZ-cam.z)/(MAXZ-MINZ),0,1)).toFixed(2)+'%';
+}
+
+/* --------------------------------- ввод ---------------------------------- */
+function zoomAt(mx,my,dz){
+  const nz = clamp(cam.tz+dz, MINZ, MAXZ);
+  const m0 = Math.pow(10,cam.tz)/H, m1 = Math.pow(10,nz)/H;
+  cam.tx += (mx-W/2)*(m0-m1);
+  cam.ty += (my-H/2)*(m0-m1);
+  cam.tz = nz;
+  autoOn = false; syncAuto();
+}
+function goLevel(i){
+  const L = LEVELS[clamp(i,0,LEVELS.length-1)];
+  cam.tz = clamp(L.e, MINZ, MAXZ); cam.tx = 0; cam.ty = 0;
+  autoOn = false; syncAuto();
+}
+function syncAuto(){ $('bAuto').classList.toggle('on', autoOn); }
+
+window.addEventListener('wheel', e => {
+  if(e.target && e.target.closest && e.target.closest('#rail')) return;
+  e.preventDefault();
+  const dy = e.deltaMode === 1 ? e.deltaY*16 : (e.deltaMode === 2 ? e.deltaY*H : e.deltaY);
+  zoomAt(e.clientX, e.clientY, -dy*.0016);
+}, { passive:false });
+
+const ptrs = new Map();
+let pinchD = 0;
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  canvas.classList.add('drag');
+  autoOn = false; syncAuto();
+});
+canvas.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if(!p) return;
+  const dx = e.clientX-p.x, dy = e.clientY-p.y;
+  p.x = e.clientX; p.y = e.clientY;
+  if(ptrs.size >= 2){
+    const a = [...ptrs.values()];
+    const d = Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
+    if(pinchD > 0) zoomAt((a[0].x+a[1].x)/2, (a[0].y+a[1].y)/2, Math.log10(d/pinchD));
+    pinchD = d;
+    return;
+  }
+  const m = mpp(cam.z);
+  cam.x -= dx*m; cam.y -= dy*m; cam.tx = cam.x; cam.ty = cam.y;
+  clampCam();
+});
+function endPtr(e){ ptrs.delete(e.pointerId); pinchD = 0;
+  if(!ptrs.size) canvas.classList.remove('drag'); }
+canvas.addEventListener('pointerup', endPtr);
+canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('dblclick', e => zoomAt(e.clientX,e.clientY,-1));
+
+window.addEventListener('keydown', e => {
+  if(e.metaKey || e.ctrlKey || e.altKey) return;
+  const i = LEVELS.indexOf(nearest(cam.z));
+  if(e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'PageDown'){ goLevel(i-1); e.preventDefault(); }
+  else if(e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'PageUp'){ goLevel(i+1); e.preventDefault(); }
+  else if(e.key === '+' || e.key === '=' ){ cam.tz = clamp(cam.tz-.8,MINZ,MAXZ); autoOn=false; syncAuto(); }
+  else if(e.key === '-' || e.key === '_' ){ cam.tz = clamp(cam.tz+.8,MINZ,MAXZ); autoOn=false; syncAuto(); }
+  else if(e.key === ' '){ autoOn = !autoOn; syncAuto(); e.preventDefault(); }
+  else if(e.key === 'Home' || e.key === 'h' || e.key === 'р'){ goLevel(LEVELS.findIndex(L => L.e === 0)); }
+  else if(e.key === 'End' || e.key === 'e' || e.key === 'у'){ goLevel(LEVELS.length-1); }
+});
+$('bAuto').addEventListener('click', () => { autoOn = !autoOn; syncAuto(); if(autoOn) autoDir = -1; });
+$('bHome').addEventListener('click', () => goLevel(LEVELS.findIndex(L => L.e === 0)));
+$('bTop').addEventListener('click', () => goLevel(LEVELS.length-1));
+window.addEventListener('resize', resize);
+
+resize();
+buildRail();
+cam.z = cam.tz = 0;
+requestAnimationFrame(frame);
+
+/* отладочный доступ: можно прыгнуть на любой уровень из консоли */
+window.scaleApp = { cam, LEVELS, goLevel, zoomAt, visible, nearest, rate,
+  jump(z){ cam.z = cam.tz = clamp(z, MINZ, MAXZ); cam.x = cam.y = cam.tx = cam.ty = 0; },
+  setTime(v){ simT = v; } };
+})();
+</script>
+</body>
+</html>
