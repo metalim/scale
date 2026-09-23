@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Масштаб — от кварка до наблюдаемой Вселенной</title>
+<meta name="description" content="Непрерывный полёт по логарифмической шкале размеров: один мир, реальные размеры, заглядываем внутрь объектов.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<div id="ui">
+  <header id="top">
+    <div id="subject">
+      <h1 id="sname">Человек</h1>
+      <div id="smeta">радиус ≈ 0,5 м</div>
+      <p id="sdesc"></p>
+    </div>
+    <div id="readout">
+      <div id="viewsize">в кадре ≈ 2 м</div>
+      <div id="decade">10⁰ м</div>
+      <div id="alive">живого в кадре нет</div>
+    </div>
+  </header>
+
+  <div id="hint">колесо — зум · перетаскивание — сдвиг · пробел — пауза · H — к человеку</div>
+
+  <footer id="bottom">
+    <div id="ruler" aria-label="логарифмическая шкала размеров"></div>
+    <div id="bar">
+      <button id="btn-play" title="Пауза (пробел)">❙❙</button>
+      <button id="btn-slower" title="Медленнее">−</button>
+      <input id="speed" type="range" min="0.04" max="1.6" step="0.02" value="0.3" aria-label="скорость">
+      <button id="btn-faster" title="Быстрее">+</button>
+      <span id="speedval">1,00×</span>
+      <span class="sep"></span>
+      <button id="btn-human" title="Масштаб человека (H)">человек</button>
+      <button id="btn-labels" title="Подписи (L)">подписи</button>
+    </div>
+  </footer>
+</div>
+
+<script src="js/paint.js"></script>
+<script src="js/content.js"></script>
+<script src="js/engine.js"></script>
+</body>
+</html>
