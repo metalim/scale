@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Scale — логарифмическая Вселенная</title>
+<style>
+  :root {
+    --bg: #060a14;
+    --grid: rgba(120, 160, 255, 0.05);
+    --text: #dfe8ff;
+    --dim: #7d8bb5;
+    --accent: #66c2ff;
+    --accent2: #ffcc66;
+    --panel: rgba(10, 16, 34, 0.72);
+    --stroke: rgba(130, 170, 255, 0.16);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
+  body {
+    font-family: "SF Mono", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+    color: var(--text); user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .ui { position: fixed; z-index: 10; }
+
+  /* ── HUD: линейка масштаба + описание ─────────────── */
+  #ruler {
+    left: 50%; transform: translateX(-50%);
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    width: min(660px, calc(100vw - 24px));
+    text-align: center; pointer-events: none;
+  }
+  #ruler .mag {
+    font-size: clamp(20px, 3.6vw, 30px); font-weight: 700; letter-spacing: 0.06em;
+    color: #fff; text-shadow: 0 0 22px rgba(102, 194, 255, 0.5);
+    transition: color .35s, text-shadow .35s;
+  }
+  #ruler .mag small { font-size: .62em; font-weight: 400; color: var(--dim); letter-spacing: 0; }
+  #ruler .ways {
+    margin-top: 2px; font-size: 11px; color: var(--dim); letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  #ruler .ways b { color: var(--accent2); font-weight: 600; }
+  #ruler .objname {
+    margin-top: 4px; font-size: 13px; color: var(--accent); letter-spacing: 0.08em;
+  }
+  #ruler .desc {
+    margin: 6px auto 0; max-width: 560px; font-size: 12.5px; line-height: 1.45; color: #aab6dd;
+  }
+  #ruler .hint {
+    margin-top: 8px; font-size: 10.5px; color: rgba(125,139,181,.75); letter-spacing: .08em;
+  }
+
+  /* ── Индикатор хода времени ─────────────────────── */
+  #clock {
+    top: 18px; left: 50%; transform: translateX(-50%);
+    text-align: center; pointer-events: none;
+    background: var(--panel); border: 1px solid var(--stroke);
+    padding: 6px 16px 5px; border-radius: 999px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  #clock .t { font-size: 13px; color: var(--text); letter-spacing: .05em; }
+  #clock .t b { color: var(--accent2); font-weight: 600; }
+  #clock .sp { font-size: 9px; color: var(--dim); letter-spacing: .18em; text-transform: uppercase; margin-top: 1px; }
+  #clock .sp s { text-decoration: none; }
+
+  /* ── Кнопки управления ──────────────────────────── */
+  #controls { right: 14px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; }
+  .ctl {
+    width: 42px; height: 42px; border-radius: 12px;
+    border: 1px solid var(--stroke); background: var(--panel);
+    color: var(--text); font: inherit; font-size: 17px; cursor: pointer;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    transition: background .2s, border-color .2s, transform .1s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ctl:hover { background: rgba(102,194,255,.14); border-color: rgba(102,194,255,.4); }
+  .ctl:active { transform: scale(0.94); }
+
+  /* ── Боковая лента уровней ──────────────────────── */
+  #ladder {
+    left: 14px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 1px;
+    max-height: min(78vh, 720px); overflow: hidden;
+    padding: 6px 4px; background: var(--panel);
+    border: 1px solid var(--stroke); border-radius: 14px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    -webkit-mask-image: linear-gradient(#000 92%, transparent);
+    mask-image: linear-gradient(#000 92%, transparent);
+  }
+  #ladder .rung {
+    display: flex; align-items: center; gap: 7px;
+    padding: 1.5px 8px; cursor: pointer; border-radius: 8px;
+    transition: background .15s; white-space: nowrap;
+  }
+  #ladder .rung:hover { background: rgba(102,194,255,.1); }
+  #ladder .dot { width: 5px; height: 5px; border-radius: 50%; background: #35405e; flex: none; transition: all .2s; }
+  #ladder .lbl { font-size: 10px; color: #5a6584; letter-spacing: .04em; transition: color .2s; }
+  #ladder .rung.near .dot { background: #88b8ff; box-shadow: 0 0 6px rgba(136,184,255,.8); }
+  #ladder .rung.near .lbl { color: #cdd8f8; }
+  #ladder .rung.cur { background: rgba(102,194,255,.16); }
+  #ladder .rung.cur .dot { background: var(--accent2); width: 7px; height: 7px; box-shadow: 0 0 8px rgba(255,204,102,.9); }
+  #ladder .rung.cur .lbl { color: #fff; font-weight: 700; }
+  #ladder .maglbl { margin-left: auto; font-size: 9px; color: #47506e; padding-left: 6px; }
+
+  /* ── Заголовок ─────────────────────────────────── */
+  #brand { right: 16px; bottom: 16px; text-align: right; pointer-events: none; }
+  #brand .n { font-size: 12px; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; }
+  #brand .s { font-size: 9.5px; color: #3d4560; margin-top: 2px; letter-spacing: .1em; }
+
+  /* ── Шкала-градиент справа снизу ───────────────── */
+  #spectrum {
+    position: fixed; z-index: 9; right: 18px; bottom: 64px; width: 10px; height: 180px;
+    border-radius: 6px; border: 1px solid var(--stroke); overflow: hidden; pointer-events: none;
+  }
+  #spectrum .fill {
+    position: absolute; left: 0; width: 100%; bottom: 0;
+    background: linear-gradient(to top,
+      #4a6cff, #66c2ff 30%, #7dffb0 48%, #fff77d 62%, #ffb066 78%, #ff6680 100%);
+    height: var(--p, 50%);
+    transition: height .15s linear;
+  }
+  #spectrum .knob {
+    position: absolute; left: -4px; width: 18px; height: 3px; border-radius: 2px;
+    background: #fff; box-shadow: 0 0 8px rgba(255,255,255,.9); bottom: calc(var(--p, 50%) - 1.5px);
+  }
+
+  /* ── Справка ─────────────────────────────────── */
+  #helpbox {
+    left: 50%; top: 50%; transform: translate(-50%,-50%);
+    background: rgba(8,13,28,.94); border: 1px solid var(--stroke); border-radius: 16px;
+    padding: 22px 26px; max-width: 420px; font-size: 12.5px; line-height: 2; color: #aab6dd;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 20px 60px rgba(0,0,0,.5); cursor: pointer; z-index: 20;
+  }
+  #helpbox b { color: var(--accent2); font-weight: 600; }
+  #helpbox[hidden] { display: none; }
+
+  @media (max-width: 900px) {
+    #ladder { display: none; }
+    #controls { right: 10px; }
+    #ruler .desc { display: none; }
+    #spectrum { display: none; }
+    #helpbox { display: none !important; }
+  }
+  @media (max-width: 620px) {
+    #brand { display: none; }
+    #clock { top: 12px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div class="ui" id="clock"><div class="t"><b id="ctype">×1</b> ход времени</div><div class="sp">единый для всех уровней</div></div>
+
+<div class="ui" id="controls">
+  <button class="ctl" id="zin"  title="Приблизить">+</button>
+  <button class="ctl" id="zout" title="Отдалить">−</button>
+  <button class="ctl" id="home" title="Масштаб человека">⌂</button>
+  <button class="ctl" id="help" title="Справка">?</button>
+</div>
+
+<div class="ui" id="ladder"></div>
+
+<div class="ui" id="ruler">
+  <div class="mag"><span id="mtxt">1 м</span> <small id="munit"></small></div>
+  <div class="ways" id="wtxt"></div>
+  <div class="objname" id="otxt"></div>
+  <div class="desc" id="dtxt"></div>
+  <div class="hint">колесо · пинч · ← → · PgUp/PgDn · клик по ленте</div>
+</div>
+
+<div class="ui" id="brand"><div class="n">SCALE</div><div class="s">log₁₀ зум · 44 уровня</div></div>
+
+<div class="ui" id="helpbox">
+  <div>
+    <b>Колесо мыши / пинч</b> — плавный логарифмический зум<br>
+    <b>Перетаскивание мышью / свайп</b> — зум тянуть<br>
+    <b>← →</b> или <b>PgUp / PgDn</b> — на пол-порядка<br>
+    <b>⌂</b> — вернуться к масштабу человека<br>
+    <b>Клик по ленте слева</b> — прыжок к уровню<br>
+    Время течёт с одной скоростью для всех уровней —
+    темп задаёт только текущий зум.
+  </div>
+</div>
+
+<div id="spectrum"><div class="fill"></div><div class="knob"></div></div>
+
+<script src="app.js"></script>
+</body>
+</html>
