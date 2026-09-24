@@ -21,7 +21,20 @@
     color:var(--dim2);margin:0 0 14px}
   h1{font-size:clamp(24px,4.2vw,38px);line-height:1.1;letter-spacing:-.018em;
     font-weight:600;margin:0 0 22px}
-  blockquote{margin:0 0 34px;padding:16px 20px;border-left:2px solid var(--accent);
+  .prompt{position:relative;margin:0 0 34px}
+  .prompt blockquote{margin:0;padding-right:60px}
+  button.copy{position:absolute;top:10px;right:10px;width:34px;height:34px;padding:0;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--stroke);
+    border-radius:9px;transition:color .16s,background .16s,border-color .16s}
+  button.copy:hover{color:#fff;background:rgba(143,211,255,.13);border-color:rgba(143,211,255,.5)}
+  button.copy:active{transform:translateY(1px)}
+  button.copy svg{width:17px;height:17px;display:block}
+  button.copy .i-check{display:none}
+  button.copy.ok{color:#7ef0b0;background:rgba(126,240,176,.12);border-color:rgba(126,240,176,.5)}
+  button.copy.ok .i-copy{display:none}
+  button.copy.ok .i-check{display:block}
+    blockquote{margin:0 0 34px;padding:16px 20px;border-left:2px solid var(--accent);
     background:rgba(143,211,255,.05);border-radius:0 12px 12px 0;
     font-size:14.5px;line-height:1.6;color:var(--dim)}
   nav{display:grid;gap:12px}
@@ -45,7 +58,13 @@
   <h1>Интерактивный логарифмический зум:<br>от кварка до наблюдаемой Вселенной</h1>
   <section>
     <p class="k">Промт v1 · 5 сборок</p>
-    <blockquote>Сделай интерактивную веб-страницу с физическим логарифмическим зумом от субатомного масштаба до наблюдаемой Вселенной, с уникальным анимированным объектом на каждом уровне. Все уровни нарисованы чётким узнаваемым вектором, и с одной общей скоростью времени, зависящей только от текущего зума. Дефолт — масштаб человека.</blockquote>
+    <div class="prompt">
+      <blockquote>Сделай интерактивную веб-страницу с физическим логарифмическим зумом от субатомного масштаба до наблюдаемой Вселенной, с уникальным анимированным объектом на каждом уровне. Все уровни нарисованы чётким узнаваемым вектором, и с одной общей скоростью времени, зависящей только от текущего зума. Дефолт — масштаб человека.</blockquote>
+      <button class="copy" type="button" aria-label="Скопировать промт v1" title="Скопировать промт v1">
+        <svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2.5"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <svg class="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+      </button>
+    </div>
     <nav>
       <a href="grok-4.6/">
       <span class="b">grok-4.6</span>
@@ -77,7 +96,13 @@
 
   <section>
     <p class="k">Промт v2 · 2 сборки</p>
-    <blockquote>Сделай интерактивную страницу: камера непрерывно едет по логарифмической шкале от субатомного масштаба до наблюдаемой Вселенной. Это один мир с реальными размерами: объекты растут и уменьшаются вместе с камерой, ничего не появляется и не исчезает. Подлетая к объекту, видно, что у него внутри. На любом масштабе есть что-то живое и узнаваемое. Дефолт — масштаб человека.</blockquote>
+    <div class="prompt">
+      <blockquote>Сделай интерактивную страницу: камера непрерывно едет по логарифмической шкале от субатомного масштаба до наблюдаемой Вселенной. Это один мир с реальными размерами: объекты растут и уменьшаются вместе с камерой, ничего не появляется и не исчезает. Подлетая к объекту, видно, что у него внутри. На любом масштабе есть что-то живое и узнаваемое. Дефолт — масштаб человека.</blockquote>
+      <button class="copy" type="button" aria-label="Скопировать промт v2" title="Скопировать промт v2">
+        <svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2.5"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <svg class="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+      </button>
+    </div>
     <nav>
       <a href="deepseek-v4.1-flash-v2/">
         <span class="b">deepseek-v4.1-flash-v2</span>
@@ -94,5 +119,41 @@
 
   <p class="note">Ссылки добавляются по мере появления новых веток.</p>
 </main>
+<script>
+(function () {
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise(function (res, rej) {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.top = '-1000px';
+      document.body.appendChild(ta); ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      ok ? res() : rej(new Error('copy failed'));
+    });
+  }
+  var btns = document.querySelectorAll('button.copy');
+  for (var i = 0; i < btns.length; i++) (function (btn) {
+    btn.addEventListener('click', function () {
+      var holder = btn.closest('.prompt');
+      var text = holder ? holder.querySelector('blockquote').textContent.trim() : '';
+      copyText(text).then(function () {
+        btn.classList.add('ok');
+        btn.title = 'Скопировано';
+      }, function () {
+        btn.title = 'Не удалось скопировать';
+      }).then(function () {
+        clearTimeout(btn._t);
+        btn._t = setTimeout(function () {
+          btn.classList.remove('ok');
+          btn.title = btn.getAttribute('aria-label');
+        }, 1600);
+      });
+    });
+  })(btns[i]);
+})();
+</script>
 </body>
 </html>
