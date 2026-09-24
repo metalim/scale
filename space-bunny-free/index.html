@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#05070d" />
+    <meta
+      name="description"
+      content="Интерактивный логарифмический зум от субатомного мира до наблюдаемой Вселенной."
+    />
+    <title>Масштаб — интерактивная карта мира</title>
+    <script type="module" crossorigin src="./assets/index-DGDVOnOs.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BjryRGHp.css">
+  </head>
+  <body>
+    <main id="app" class="app" aria-label="Интерактивная карта масштабов">
+      <div class="backdrop" aria-hidden="true"></div>
+
+      <section class="intro" aria-labelledby="intro-title">
+        <p class="eyebrow">Интерактивный атлас</p>
+        <h1 id="intro-title">Масштаб</h1>
+        <p class="intro-copy">
+          Прокрутите, чтобы путешествовать от ядра атома до края наблюдаемой Вселенной.
+        </p>
+        <div class="scroll-cue" aria-hidden="true">
+          <span>ПРОКРУТИТЕ</span>
+          <i></i>
+        </div>
+      </section>
+
+      <div class="scene-wrap" aria-live="polite">
+        <svg
+          id="scene"
+          class="scene"
+          viewBox="0 0 1600 900"
+          preserveAspectRatio="xMidYMid slice"
+          role="img"
+          aria-label="Векторная сцена выбранного масштаба"
+        >
+          <defs>
+            <radialGradient id="sky" cx="50%" cy="45%" r="72%">
+              <stop offset="0" stop-color="#15223a" />
+              <stop offset="0.46" stop-color="#080e1a" />
+              <stop offset="1" stop-color="#03050a" />
+            </radialGradient>
+            <radialGradient id="aquaGlow">
+              <stop offset="0" stop-color="#b6fff3" stop-opacity=".88" />
+              <stop offset=".35" stop-color="#41e4d0" stop-opacity=".34" />
+              <stop offset="1" stop-color="#41e4d0" stop-opacity="0" />
+            </radialGradient>
+            <linearGradient id="planet" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#8dd6ff" />
+              <stop offset=".45" stop-color="#3164d8" />
+              <stop offset="1" stop-color="#0b163d" />
+            </linearGradient>
+            <linearGradient id="sun" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#fff8c7" />
+              <stop offset=".45" stop-color="#ffad36" />
+              <stop offset="1" stop-color="#ef4a22" />
+            </linearGradient>
+            <linearGradient id="galaxy" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#71e8ff" stop-opacity="0" />
+              <stop offset=".25" stop-color="#75e8ff" stop-opacity=".58" />
+              <stop offset=".5" stop-color="#fff6de" />
+              <stop offset=".75" stop-color="#d68cff" stop-opacity=".58" />
+              <stop offset="1" stop-color="#a46fff" stop-opacity="0" />
+            </linearGradient>
+            <linearGradient id="dnaA" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#65fff1" />
+              <stop offset="1" stop-color="#4c7cff" />
+            </linearGradient>
+            <filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur stdDeviation="10" />
+            </filter>
+            <filter id="smallGlow" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur stdDeviation="3" />
+            </filter>
+            <pattern id="microGrid" width="34" height="34" patternUnits="userSpaceOnUse">
+              <path d="M 34 0 L 0 0 0 34" fill="none" stroke="#8edfd5" stroke-opacity=".08" />
+            </pattern>
+          </defs>
+          <rect width="1600" height="900" fill="url(#sky)" />
+          <g id="deep-space" class="deep-space" aria-hidden="true"></g>
+          <g id="scene-levels"></g>
+          <g class="vignette" aria-hidden="true">
+            <rect width="1600" height="900" fill="none" stroke="#000" stroke-width="130" stroke-opacity=".38" />
+          </g>
+        </svg>
+      </div>
+
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Вернуться к человеку">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>SCALE / 42</span>
+        </a>
+        <div class="top-actions">
+          <button id="about-button" class="icon-button" type="button" aria-label="Открыть справку">?</button>
+          <button id="reset-button" class="reset-button" type="button">
+            <span>Сбросить масштаб</span>
+            <kbd>0</kbd>
+          </button>
+        </div>
+      </header>
+
+      <aside class="hud" aria-label="Текущий масштаб">
+        <p class="hud-kicker">Текущий масштаб</p>
+        <p id="scale-value" class="scale-value">1,7 м</p>
+        <div class="hud-rule"></div>
+        <p id="level-index" class="level-index">06 / 16</p>
+        <h2 id="level-name" class="level-name">Человек</h2>
+        <p id="level-caption" class="level-caption">Знакомый масштаб</p>
+      </aside>
+
+      <aside class="zoom-controls" aria-label="Управление масштабом">
+        <button id="zoom-out" class="zoom-button" type="button" aria-label="Отдалить">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" /></svg>
+        </button>
+        <div class="zoom-track" aria-hidden="true">
+          <div class="zoom-track-fill" id="zoom-track-fill"></div>
+          <div class="zoom-track-thumb" id="zoom-track-thumb"></div>
+        </div>
+        <button id="zoom-in" class="zoom-button" type="button" aria-label="Приблизить">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12" /></svg>
+        </button>
+      </aside>
+
+      <nav id="level-nav" class="level-nav" aria-label="Уровни масштаба"></nav>
+
+      <div class="unit-readout" aria-hidden="true">
+        <span class="unit-line"></span>
+        <span id="unit-caption">1,7 МЕТРА</span>
+      </div>
+
+      <div id="about-panel" class="about-panel" hidden>
+        <button id="about-close" class="about-close" type="button" aria-label="Закрыть справку">×</button>
+        <p class="eyebrow">Как путешествовать</p>
+        <h2>Один жест — любой масштаб</h2>
+        <p>
+          Колесо мыши, трекпад или клавиши <kbd>+</kbd> и <kbd>−</kbd> плавно меняют физический размер сцены.
+          Нажмите <kbd>0</kbd>, чтобы вернуться к человеку.
+        </p>
+        <div class="about-scale">
+          <span>10⁻¹⁵ м</span><i></i><span>10²⁷ м</span>
+        </div>
+        <p class="about-note">Каждый уровень — отдельная векторная композиция. Время анимации зависит только от текущего зума.</p>
+      </div>
+
+      <div class="sr-only" id="announcer" aria-live="polite"></div>
+    </main>
+  </body>
+</html>
